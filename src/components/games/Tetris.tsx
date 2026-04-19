@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -7,39 +6,23 @@ import { ArrowLeft, ArrowRight, ArrowDown, RotateCw, ArrowDownToLine, RotateCcw 
 
 const COLS = 10;
 const ROWS = 20;
-
-const SHAPES = {
-  I: [[1, 1, 1, 1]],
-  J: [[1, 0, 0], [1, 1, 1]],
-  L: [[0, 0, 1], [1, 1, 1]],
-  O: [[1, 1], [1, 1]],
-  S: [[0, 1, 1], [1, 1, 0]],
-  T: [[0, 1, 0], [1, 1, 1]],
-  Z: [[1, 1, 0], [0, 1, 1]],
-};
-
-const COLORS = ['#C41DFA', '#2600CC', '#FA1D64', '#1DFA9E', '#FAC11D', '#1D5DFA', '#A41DFA'];
+const SHAPES = { I: [[1, 1, 1, 1]], J: [[1, 0, 0], [1, 1, 1]], L: [[0, 0, 1], [1, 1, 1]], O: [[1, 1], [1, 1]], S: [[0, 1, 1], [1, 1, 0]], T: [[0, 1, 0], [1, 1, 1]], Z: [[1, 1, 0], [0, 1, 1]] };
+const COLORS = ['#C41DFA', '#2600CC', '#FA1D64', '#1DFA9E', '#FAC11D'];
 
 export default function Tetris({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
   const [grid, setGrid] = useState(Array.from({ length: ROWS }, () => Array(COLS).fill(0)));
-  const [currentPiece, setCurrentPiece] = useState<{ shape: number[][], pos: { x: number, y: number }, color: string } | null>(null);
+  const [currentPiece, setCurrentPiece] = useState<any>(null);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
-  
-  const dropCounter = useRef(0);
-  const dropInterval = useRef(800);
-  const lastTime = useRef(0);
+  const lastTimeRef = useRef(0);
+  const dropCounterRef = useRef(0);
   const requestRef = useRef<number>(0);
 
   const collide = (grid: any[][], piece: any) => {
     for (let y = 0; y < piece.shape.length; y++) {
       for (let x = 0; x < piece.shape[y].length; x++) {
         if (piece.shape[y][x] !== 0) {
-          const gridY = piece.pos.y + y;
-          const gridX = piece.pos.x + x;
-          if (gridY >= ROWS || gridX < 0 || gridX >= COLS || (grid[gridY] && grid[gridY][gridX] !== 0)) {
-            return true;
-          }
+          if (piece.pos.y + y >= ROWS || piece.pos.x + x < 0 || piece.pos.x + x >= COLS || (grid[piece.pos.y + y] && grid[piece.pos.y + y][piece.pos.x + x] !== 0)) return true;
         }
       }
     }
@@ -50,192 +33,79 @@ export default function Tetris({ onGameOver, isMobile }: { onGameOver: (score: n
     const keys = Object.keys(SHAPES) as (keyof typeof SHAPES)[];
     const shape = SHAPES[keys[Math.floor(Math.random() * keys.length)]];
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    const piece = { shape, pos: { x: 3, y: 0 }, color };
-    return piece;
+    return { shape, pos: { x: 3, y: 0 }, color };
   }, []);
 
-  const merge = (grid: any[][], piece: any) => {
-    const newGrid = grid.map(row => [...row]);
-    piece.shape.forEach((row: any[], y: number) => {
-      row.forEach((value, x) => {
-        if (value !== 0) {
-          newGrid[piece.pos.y + y][piece.pos.x + x] = piece.color;
-        }
-      });
-    });
-    return newGrid;
-  };
-
-  const clearLines = (grid: any[][]) => {
-    let linesCleared = 0;
-    const newGrid = grid.filter(row => {
-      const isFull = row.every(cell => cell !== 0);
-      if (isFull) linesCleared++;
-      return !isFull;
-    });
-    while (newGrid.length < ROWS) {
-      newGrid.unshift(Array(COLS).fill(0));
-    }
-    if (linesCleared > 0) {
-      setScore(s => s + [0, 100, 300, 500, 800][linesCleared]);
-      dropInterval.current = Math.max(100, 800 - (score / 100) * 10);
-    }
-    return newGrid;
-  };
-
   const drop = useCallback(() => {
-    if (gameOver) return;
-    
-    setCurrentPiece(prev => {
+    setCurrentPiece((prev: any) => {
       if (!prev) return prev;
-      const nextPos = { ...prev, pos: { ...prev.pos, y: prev.pos.y + 1 } };
-      
-      if (collide(grid, nextPos)) {
-        const mergedGrid = merge(grid, prev);
-        const clearedGrid = clearLines(mergedGrid);
+      const next = { ...prev, pos: { ...prev.pos, y: prev.pos.y + 1 } };
+      if (collide(grid, next)) {
+        const newGrid = grid.map(row => [...row]);
+        prev.shape.forEach((row: any[], y: number) => row.forEach((val: number, x: number) => { if (val) newGrid[prev.pos.y + y][prev.pos.x + x] = prev.color; }));
+        let lines = 0;
+        const clearedGrid = newGrid.filter(row => { const full = row.every(c => c !== 0); if (full) lines++; return !full; });
+        while (clearedGrid.length < ROWS) clearedGrid.unshift(Array(COLS).fill(0));
         setGrid(clearedGrid);
-        
-        const nextPiece = spawnPiece();
-        if (collide(clearedGrid, nextPiece)) {
-          setGameOver(true);
-          return null;
-        }
-        return nextPiece;
+        setScore(s => s + [0, 100, 300, 500, 800][lines]);
+        const nextP = spawnPiece();
+        if (collide(clearedGrid, nextP)) setGameOver(true);
+        return nextP;
       }
-      return nextPos;
+      return next;
     });
-    dropCounter.current = 0;
-  }, [grid, gameOver, spawnPiece, score]);
+    dropCounterRef.current = 0;
+  }, [grid, spawnPiece]);
 
-  const move = (dir: number) => {
-    if (gameOver || !currentPiece) return;
-    setCurrentPiece(prev => {
-      if (!prev) return prev;
-      const nextPos = { ...prev, pos: { ...prev.pos, x: prev.pos.x + dir } };
-      if (!collide(grid, nextPos)) return nextPos;
-      return prev;
-    });
-  };
+  const animate = useCallback((time: number) => {
+    if (!gameOver) {
+      const dt = time - lastTimeRef.current; lastTimeRef.current = time;
+      dropCounterRef.current += dt;
+      if (dropCounterRef.current > 800) drop();
+      requestRef.current = requestAnimationFrame(animate);
+    }
+  }, [drop, gameOver]);
 
-  const rotate = () => {
-    if (gameOver || !currentPiece) return;
-    setCurrentPiece(prev => {
-      if (!prev) return prev;
-      const rotated = prev.shape[0].map((_, i) => prev.shape.map(row => row[i]).reverse());
-      const nextPiece = { ...prev, shape: rotated };
-      if (!collide(grid, nextPiece)) return nextPiece;
-      return prev;
-    });
-  };
+  useEffect(() => {
+    if (!currentPiece) setCurrentPiece(spawnPiece());
+    requestRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(requestRef.current);
+  }, [animate, currentPiece, spawnPiece]);
 
-  const hardDrop = () => {
-    if (gameOver || !currentPiece) return;
-    setCurrentPiece(prev => {
-      if (!prev) return prev;
-      let nextPos = { ...prev };
-      while (!collide(grid, { ...nextPos, pos: { ...nextPos.pos, y: nextPos.pos.y + 1 } })) {
-        nextPos.pos.y += 1;
-      }
-      const mergedGrid = merge(grid, nextPos);
-      const clearedGrid = clearLines(mergedGrid);
-      setGrid(clearedGrid);
-      
-      const nextPiece = spawnPiece();
-      if (collide(clearedGrid, nextPiece)) {
-        setGameOver(true);
-        return null;
-      }
-      return nextPiece;
-    });
-  };
+  const move = (dir: number) => setCurrentPiece((p: any) => { if (!p || gameOver) return p; const n = { ...p, pos: { ...p.pos, x: p.pos.x + dir } }; return collide(grid, n) ? p : n; });
+  const rotate = () => setCurrentPiece((p: any) => { if (!p || gameOver) return p; const r = p.shape[0].map((_: any, i: number) => p.shape.map((row: any) => row[i]).reverse()); const n = { ...p, shape: r }; return collide(grid, n) ? p : n; });
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') move(-1);
-      if (e.key === 'ArrowRight') move(1);
-      if (e.key === 'ArrowDown') drop();
-      if (e.key === 'ArrowUp') rotate();
-      if (e.key === ' ') hardDrop();
+      if (e.key === 'ArrowLeft') move(-1); if (e.key === 'ArrowRight') move(1);
+      if (e.key === 'ArrowDown') drop(); if (e.key === 'ArrowUp') rotate();
     };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    window.addEventListener('keydown', handleKey); return () => window.removeEventListener('keydown', handleKey);
   }, [drop]);
 
-  useEffect(() => {
-    setCurrentPiece(spawnPiece());
-  }, [spawnPiece]);
-
-  const animate = useCallback((time = 0) => {
-    const deltaTime = time - lastTime.current;
-    lastTime.current = time;
-    dropCounter.current += deltaTime;
-    
-    if (dropCounter.current > dropInterval.current) {
-      drop();
-    }
-    requestRef.current = requestAnimationFrame(animate);
-  }, [drop]);
-
-  useEffect(() => {
-    requestRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(requestRef.current);
-  }, [animate]);
-
-  useEffect(() => {
-    if (gameOver) onGameOver(score);
-  }, [gameOver, score, onGameOver]);
-
-  const reset = () => {
-    setGrid(Array.from({ length: ROWS }, () => Array(COLS).fill(0)));
-    setScore(0);
-    setGameOver(false);
-    setCurrentPiece(spawnPiece());
-  };
+  useEffect(() => { if (gameOver) onGameOver(score); }, [gameOver, score, onGameOver]);
 
   return (
     <div className="flex flex-col items-center gap-6 w-full h-full justify-center p-4">
       <div className="text-4xl font-bold font-headline text-primary">Score: {score}</div>
-      
-      <div 
-        className="relative bg-muted/20 border-4 border-primary rounded-2xl overflow-hidden shadow-2xl p-1"
-        style={{ width: 'min(70vw, 300px)', height: 'min(140vw, 600px)', display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)` }}
-      >
+      <div className="relative bg-muted/20 border-4 border-primary rounded-2xl overflow-hidden shadow-2xl p-1" style={{ width: 'min(70vw, 300px)', height: 'min(140vw, 600px)', display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
         {grid.map((row, y) => row.map((cell, x) => {
-          let color = cell;
-          if (currentPiece) {
-            const py = y - currentPiece.pos.y;
-            const px = x - currentPiece.pos.x;
-            if (py >= 0 && py < currentPiece.shape.length && px >= 0 && px < currentPiece.shape[py].length) {
-              if (currentPiece.shape[py][px] !== 0) color = currentPiece.color;
-            }
-          }
-          return (
-            <div 
-              key={`${y}-${x}`} 
-              className={`w-full h-full border-[0.5px] border-white/5 rounded-[2px] transition-colors`}
-              style={{ backgroundColor: color !== 0 ? color as string : 'transparent' }}
-            />
-          );
+          let color = cell; if (currentPiece) { const py = y - currentPiece.pos.y; const px = x - currentPiece.pos.x; if (py >= 0 && py < currentPiece.shape.length && px >= 0 && px < currentPiece.shape[0].length && currentPiece.shape[py][px]) color = currentPiece.color; }
+          return <div key={`${y}-${x}`} className="w-full h-full border-[0.5px] border-white/5 rounded-[2px]" style={{ backgroundColor: color !== 0 ? color as string : 'transparent' }} />;
         }))}
-        
         {gameOver && (
           <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center z-20 backdrop-blur-sm">
-            <h2 className="text-5xl font-headline font-bold text-destructive mb-2 tracking-tighter">GAME OVER</h2>
-            <p className="text-2xl font-headline font-bold mb-8">Score: {score}</p>
-            <Button onClick={reset} size="lg" className="rounded-full px-12 py-8 text-xl font-bold shadow-xl">
-              <RotateCcw className="mr-2 h-6 w-6" /> Restart
-            </Button>
+            <h2 className="text-5xl font-headline font-bold text-destructive mb-4">GAME OVER</h2>
+            <Button onClick={() => { setGrid(Array.from({ length: ROWS }, () => Array(COLS).fill(0))); setScore(0); setGameOver(false); setCurrentPiece(spawnPiece()); }} size="lg"><RotateCcw className="mr-2 h-6 w-6" /> Restart</Button>
           </div>
         )}
       </div>
-
       {isMobile && !gameOver && (
-        <div className="grid grid-cols-5 gap-2 w-full max-w-sm px-4 mt-2">
-          <Button variant="outline" size="icon" className="h-14 w-14 rounded-xl border-2 shadow-md" onClick={() => move(-1)}><ArrowLeft className="text-primary" /></Button>
-          <Button variant="outline" size="icon" className="h-14 w-14 rounded-xl border-2 shadow-md" onClick={() => move(1)}><ArrowRight className="text-primary" /></Button>
-          <Button variant="outline" size="icon" className="h-14 w-14 rounded-xl border-2 shadow-md" onClick={rotate}><RotateCw className="text-primary" /></Button>
-          <Button variant="outline" size="icon" className="h-14 w-14 rounded-xl border-2 shadow-md" onClick={drop}><ArrowDown className="text-primary" /></Button>
-          <Button variant="secondary" size="icon" className="h-14 w-14 rounded-xl shadow-md" onClick={hardDrop}><ArrowDownToLine /></Button>
+        <div className="grid grid-cols-5 gap-2 w-full max-w-sm">
+          <Button variant="outline" onClick={() => move(-1)}><ArrowLeft /></Button>
+          <Button variant="outline" onClick={() => move(1)}><ArrowRight /></Button>
+          <Button variant="outline" onClick={rotate}><RotateCw /></Button>
+          <Button variant="outline" onClick={drop}><ArrowDown /></Button>
         </div>
       )}
     </div>
