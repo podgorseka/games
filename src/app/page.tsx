@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -26,12 +27,12 @@ import Snake from '@/components/games/Snake';
 import Tetris from '@/components/games/Tetris';
 import FlappyBird from '@/components/games/FlappyBird';
 import BlockBlast from '@/components/games/BlockBlast';
-import GeometryDash from '@/components/games/GeometryDash';
+import PlatformerCube from '@/components/games/PlatformerCube';
 import Pong from '@/components/games/Pong';
 
 const GAMES = [
   { id: 'block-blast', name: 'Block Blast', description: 'Place blocks and explode full lines', icon: <Box /> },
-  { id: 'geometry-dash', name: 'Geometry Dash', description: 'Tap to jump over obstacles, infinite runner', icon: <MoveRight /> },
+  { id: 'platformer-cube', name: 'Platformer Cube', description: 'Jump over obstacles with your cube buddy', icon: <MoveRight /> },
   { id: 'snake', name: 'Snake', description: 'Classic snake game with smooth controls', icon: <CircleDot /> },
   { id: 'tetris', name: 'Tetris', description: 'Classic brick breaking strategy', icon: <Grid3X3 /> },
   { id: 'flappy-bird', name: 'Flappy Bird', description: 'Tap to fly between moving pillars', icon: <Bird /> },
@@ -82,7 +83,7 @@ export default function Home() {
       case 'tetris': return <Tetris isMobile={isMobile} onGameOver={handleGameOver} />;
       case 'flappy-bird': return <FlappyBird isMobile={isMobile} onGameOver={handleGameOver} />;
       case 'block-blast': return <BlockBlast isMobile={isMobile} onGameOver={handleGameOver} />;
-      case 'geometry-dash': return <GeometryDash isMobile={isMobile} onGameOver={handleGameOver} />;
+      case 'platformer-cube': return <PlatformerCube isMobile={isMobile} onGameOver={handleGameOver} />;
       case 'pong': return <Pong isMobile={isMobile} onGameOver={handleGameOver} />;
       default: return null;
     }

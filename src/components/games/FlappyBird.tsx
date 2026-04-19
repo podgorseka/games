@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -10,15 +11,16 @@ export default function FlappyBird({ onGameOver, isMobile }: { onGameOver: (scor
   const [score, setScore] = useState(0);
   const gameLoopRef = useRef<number>(0);
   
-  // Game state refs for the loop
-  const birdY = useRef(200);
+  const birdY = useRef(250);
   const birdVelocity = useRef(0);
   const pipes = useRef<{ x: number, top: number, passed: boolean }[]>([]);
-  const gravity = 0.5;
-  const jumpStrength = -8;
-  const pipeSpeed = 3;
+  
+  // Adjusted physics for smoother movement
+  const gravity = 0.35;
+  const jumpStrength = -6.5;
+  const pipeSpeed = 3.5;
   const pipeWidth = 60;
-  const pipeGap = 160;
+  const pipeGap = 180;
 
   const jump = useCallback(() => {
     if (gameOver) return;
@@ -26,14 +28,14 @@ export default function FlappyBird({ onGameOver, isMobile }: { onGameOver: (scor
   }, [gameOver]);
 
   const initGame = useCallback(() => {
-    birdY.current = 200;
+    birdY.current = 250;
     birdVelocity.current = 0;
     pipes.current = [];
     setScore(0);
     setGameOver(false);
     
     // Initial pipe
-    pipes.current.push({ x: 400, top: Math.random() * 200 + 50, passed: false });
+    pipes.current.push({ x: 600, top: Math.random() * 200 + 50, passed: false });
   }, []);
 
   const update = useCallback(() => {
@@ -43,7 +45,7 @@ export default function FlappyBird({ onGameOver, isMobile }: { onGameOver: (scor
     birdY.current += birdVelocity.current;
 
     // Boundary check
-    if (birdY.current < 0 || birdY.current > 480) {
+    if (birdY.current < 0 || birdY.current > 470) {
       setGameOver(true);
       return;
     }
@@ -67,11 +69,12 @@ export default function FlappyBird({ onGameOver, isMobile }: { onGameOver: (scor
         setScore(s => s + 1);
       }
 
-      // Collision
+      // Collision (bird is approx 30x30 circle)
+      const birdHitbox = { x: 115, y: birdY.current + 15, r: 15 };
       if (
-        100 + 30 > p.x && 
-        100 < p.x + pipeWidth && 
-        (birdY.current < p.top || birdY.current + 30 > p.top + pipeGap)
+        birdHitbox.x + birdHitbox.r > p.x && 
+        birdHitbox.x - birdHitbox.r < p.x + pipeWidth && 
+        (birdHitbox.y - birdHitbox.r < p.top || birdHitbox.y + birdHitbox.r > p.top + pipeGap)
       ) {
         setGameOver(true);
       }
@@ -81,27 +84,54 @@ export default function FlappyBird({ onGameOver, isMobile }: { onGameOver: (scor
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, 800, 500);
 
-    // Background
-    ctx.fillStyle = '#F7F0F9';
+    // Sky Background
+    ctx.fillStyle = '#F0F9FF';
     ctx.fillRect(0, 0, 800, 500);
+
+    // Clouds (simple circles)
+    ctx.fillStyle = 'white';
+    ctx.beginPath(); ctx.arc(100, 100, 40, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(400, 150, 50, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(700, 80, 45, 0, Math.PI*2); ctx.fill();
 
     // Pipes
     pipes.current.forEach(p => {
       ctx.fillStyle = '#2600CC';
-      // Top pipe
       ctx.fillRect(p.x, 0, pipeWidth, p.top);
-      // Bottom pipe
       ctx.fillRect(p.x, p.top + pipeGap, pipeWidth, 500 - (p.top + pipeGap));
+      
+      // Pipe caps
+      ctx.fillStyle = '#1A0088';
+      ctx.fillRect(p.x - 5, p.top - 20, pipeWidth + 10, 20);
+      ctx.fillRect(p.x - 5, p.top + pipeGap, pipeWidth + 10, 20);
     });
 
     // Bird
-    ctx.fillStyle = '#C41DFA';
+    ctx.fillStyle = '#FAC11D';
     ctx.beginPath();
     ctx.arc(115, birdY.current + 15, 15, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#2600CC';
+    ctx.lineWidth = 3;
     ctx.stroke();
+    
+    // Bird Eye
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(122, birdY.current + 10, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(124, birdY.current + 10, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Beak
+    ctx.fillStyle = '#FA1D64';
+    ctx.beginPath();
+    ctx.moveTo(130, birdY.current + 15);
+    ctx.lineTo(145, birdY.current + 20);
+    ctx.lineTo(130, birdY.current + 25);
+    ctx.fill();
   }, []);
 
   useEffect(() => {
@@ -123,7 +153,7 @@ export default function FlappyBird({ onGameOver, isMobile }: { onGameOver: (scor
   }, [gameOver, score, onGameOver]);
 
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.code === 'Space') jump(); };
+    const handleKey = (e: KeyboardEvent) => { if (e.code === 'Space' || e.code === 'ArrowUp') jump(); };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [jump]);
@@ -134,7 +164,7 @@ export default function FlappyBird({ onGameOver, isMobile }: { onGameOver: (scor
       onMouseDown={jump}
       onTouchStart={jump}
     >
-      <div className="absolute top-8 text-4xl font-headline font-bold text-primary z-20">
+      <div className="absolute top-8 text-5xl font-headline font-bold text-primary z-20 drop-shadow-lg">
         {score}
       </div>
 
@@ -142,25 +172,21 @@ export default function FlappyBird({ onGameOver, isMobile }: { onGameOver: (scor
         ref={canvasRef} 
         width={800} 
         height={500} 
-        className="w-full h-auto max-h-[70vh] border-4 border-primary rounded-2xl bg-white shadow-2xl"
+        className="w-full h-auto max-h-[75vh] border-4 border-primary rounded-3xl bg-white shadow-2xl"
       />
 
-      {!isMobile && (
-        <p className="mt-4 text-muted-foreground">Press SPACE or Click to jump</p>
-      )}
-      
-      {isMobile && (
-        <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
-           {!gameOver && <p className="text-white/30 text-2xl font-bold uppercase tracking-widest">Tap Anywhere</p>}
-        </div>
+      {!gameOver && (
+        <p className="mt-4 text-primary/50 font-bold uppercase tracking-widest animate-pulse">
+          {isMobile ? 'Tap to Fly' : 'Press Space to Fly'}
+        </p>
       )}
 
       {gameOver && (
-        <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center p-4 text-center z-30 cursor-default">
-          <h2 className="text-5xl font-headline font-bold text-destructive mb-4">CRASHED!</h2>
-          <p className="text-2xl mb-8">Score: {score}</p>
-          <Button onClick={initGame} size="lg" className="px-12 py-6 text-xl rounded-full shadow-lg">
-            <RotateCcw className="mr-3 h-6 w-6" /> Try Again
+        <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center z-30 cursor-default backdrop-blur-sm">
+          <h2 className="text-6xl font-headline font-bold text-destructive mb-4 tracking-tighter">GAME OVER</h2>
+          <p className="text-3xl font-headline font-bold mb-8">Score: {score}</p>
+          <Button onClick={initGame} size="lg" className="px-12 py-8 text-2xl font-bold rounded-full shadow-xl">
+            <RotateCcw className="mr-3 h-8 w-8" /> Try Again
           </Button>
         </div>
       )}
