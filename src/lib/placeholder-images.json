@@ -2,45 +2,45 @@
   "placeholderImages": [
     {
       "id": "apex-racer",
-      "description": "Apex Racer Game Image",
-      "imageUrl": "https://picsum.photos/seed/apex99/600/400",
-      "imageHint": "racing car"
+      "description": "Apex Racer Cyberpunk Highway",
+      "imageUrl": "https://picsum.photos/seed/apex_cyber/600/400",
+      "imageHint": "cyberpunk highway"
     },
     {
       "id": "block-blast",
-      "description": "Block Blast Game Image",
-      "imageUrl": "https://picsum.photos/seed/block88/600/400",
+      "description": "Block Blast Puzzle",
+      "imageUrl": "https://picsum.photos/seed/block_puzzle/600/400",
       "imageHint": "puzzle blocks"
     },
     {
       "id": "platformer-cube",
-      "description": "Platformer Cube Game Image",
-      "imageUrl": "https://picsum.photos/seed/cube77/600/400",
-      "imageHint": "geometric neon"
+      "description": "Platformer Cube Synthwave",
+      "imageUrl": "https://picsum.photos/seed/synth_cube/600/400",
+      "imageHint": "synthwave neon"
     },
     {
       "id": "snake",
-      "description": "Snake Game Image",
-      "imageUrl": "https://picsum.photos/seed/snake66/600/400",
+      "description": "Neon Snake Retro",
+      "imageUrl": "https://picsum.photos/seed/neon_snake/600/400",
       "imageHint": "neon snake"
     },
     {
       "id": "tetris",
-      "description": "Tetris Game Image",
-      "imageUrl": "https://picsum.photos/seed/tetris55/600/400",
+      "description": "Classic Tetris Blocks",
+      "imageUrl": "https://picsum.photos/seed/tetris_blocks/600/400",
       "imageHint": "stacking blocks"
     },
     {
       "id": "flappy-bird",
-      "description": "Flappy Bird Game Image",
-      "imageUrl": "https://picsum.photos/seed/bird44/600/400",
-      "imageHint": "small bird"
+      "description": "Stylized Flappy Bird",
+      "imageUrl": "https://picsum.photos/seed/stylized_bird/600/400",
+      "imageHint": "flying bird"
     },
     {
       "id": "pong",
-      "description": "Pong Game Image",
-      "imageUrl": "https://picsum.photos/seed/pong33/600/400",
-      "imageHint": "neon ping-pong"
+      "description": "Pro Neon Pong",
+      "imageUrl": "https://picsum.photos/seed/pro_pong/600/400",
+      "imageHint": "neon pong"
     }
   ]
 }

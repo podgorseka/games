@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Users, User } from 'lucide-react';
+import { RotateCcw, Users, User, Zap } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
@@ -63,6 +63,7 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
   const update = useCallback(() => {
     if (gameOver) return;
 
+    // Player Controls
     if (keysPressed.current['w']) playerY.current = Math.max(0, playerY.current - paddleSpeed);
     if (keysPressed.current['s']) playerY.current = Math.min(500 - paddleH, playerY.current + paddleSpeed);
     
@@ -70,8 +71,10 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
       if (keysPressed.current['arrowup'] || keysPressed.current['o']) aiY.current = Math.max(0, aiY.current - paddleSpeed);
       if (keysPressed.current['arrowdown'] || keysPressed.current['l']) aiY.current = Math.min(500 - paddleH, aiY.current + paddleSpeed);
     } else {
+      // UNBEATABLE AI Logic
       const aiTarget = ball.current.y - paddleH / 2;
-      const aiSpeed = 4.5 + (score / 1500);
+      // The AI now moves fast enough to catch any ball, and stays centered on it.
+      const aiSpeed = 15; // Increased speed to be significantly faster than ball's vertical velocity
       const diff = aiTarget - aiY.current;
       aiY.current += Math.sign(diff) * Math.min(Math.abs(diff), aiSpeed);
       aiY.current = Math.max(0, Math.min(500 - paddleH, aiY.current));
@@ -80,10 +83,12 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
     ball.current.x += ball.current.vx;
     ball.current.y += ball.current.vy;
 
+    // Wall bounce
     if (ball.current.y <= 10 || ball.current.y >= 490) ball.current.vy *= -1;
 
     const ballRadius = 10;
     
+    // Player Paddle Collision
     if (ball.current.x <= 20 + paddleW + ballRadius && 
         ball.current.y >= playerY.current && 
         ball.current.y <= playerY.current + paddleH && 
@@ -94,6 +99,7 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
       ball.current.vy = impact * 8;
     }
 
+    // AI/Enemy Paddle Collision
     if (ball.current.x >= 780 - paddleW - ballRadius && 
         ball.current.y >= aiY.current && 
         ball.current.y <= aiY.current + paddleH && 
@@ -104,6 +110,7 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
       ball.current.vy = impact * 8;
     }
 
+    // Score / Game Over
     if (ball.current.x < -20 || ball.current.x > 820) {
       setGameOver(true);
     }
@@ -133,7 +140,7 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
     drawPaddle(20, playerY.current);
     drawPaddle(780 - paddleW, aiY.current);
     
-    // Draw perfect circle for the ball
+    // Ball
     ctx.save();
     ctx.fillStyle = '#FA1D64';
     ctx.shadowBlur = 15;
@@ -176,7 +183,9 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
           <User className="h-4 w-4 text-muted-foreground" />
           <Switch id="two-player" checked={isTwoPlayer} onCheckedChange={(val) => { setIsTwoPlayer(val); initGame(); }} />
           <Users className="h-4 w-4 text-primary" />
-          <Label htmlFor="two-player" className="font-bold text-xs uppercase tracking-wider">2 Joueurs</Label>
+          <Label htmlFor="two-player" className="font-bold text-xs uppercase tracking-wider">
+            {isTwoPlayer ? "2 JOUEURS" : "VS IA PRO"}
+          </Label>
         </div>
       </div>
       
@@ -192,14 +201,20 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
           height={500} 
           className="w-full h-auto max-h-[60vh] border-4 border-primary rounded-3xl bg-white shadow-2xl cursor-crosshair aspect-[16/10]" 
         />
+        {!isTwoPlayer && (
+          <div className="absolute top-4 right-4 bg-primary/10 px-3 py-1 rounded-full border border-primary/20 flex items-center gap-2">
+            <Zap className="h-3 w-3 text-primary animate-pulse" />
+            <span className="text-[10px] font-black text-primary uppercase tracking-widest">IA IMBATTABLE ACTIVE</span>
+          </div>
+        )}
       </div>
 
       {gameOver && (
         <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 z-30 backdrop-blur-md">
-          <h2 className="text-7xl font-headline font-bold text-destructive mb-6 tracking-tighter">GAME OVER</h2>
+          <h2 className="text-7xl font-headline font-bold text-destructive mb-6 tracking-tighter">FIN DE PARTIE</h2>
           <p className="text-3xl font-headline font-bold mb-10">Score Final: {score}</p>
           <Button onClick={initGame} size="lg" className="rounded-full px-16 py-10 text-3xl font-bold shadow-2xl hover:scale-105 transition-transform">
-            <RotateCcw className="mr-3 h-10 w-10" /> Rejouer
+            <RotateCcw className="mr-3 h-10 w-10" /> REJOUER
           </Button>
         </div>
       )}
