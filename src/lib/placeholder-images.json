@@ -3,44 +3,44 @@
     {
       "id": "apex-racer",
       "description": "Apex Racer Game Image",
-      "imageUrl": "https://picsum.photos/seed/303/600/400",
-      "imageHint": "cyberpunk car rear"
+      "imageUrl": "https://picsum.photos/seed/apex99/600/400",
+      "imageHint": "racing car"
     },
     {
       "id": "block-blast",
       "description": "Block Blast Game Image",
-      "imageUrl": "https://picsum.photos/seed/101/600/400",
-      "imageHint": "colorful blocks neon"
+      "imageUrl": "https://picsum.photos/seed/block88/600/400",
+      "imageHint": "puzzle blocks"
     },
     {
       "id": "platformer-cube",
       "description": "Platformer Cube Game Image",
-      "imageUrl": "https://picsum.photos/seed/404/600/400",
-      "imageHint": "neon geometric landscape"
+      "imageUrl": "https://picsum.photos/seed/cube77/600/400",
+      "imageHint": "geometric neon"
     },
     {
       "id": "snake",
       "description": "Snake Game Image",
-      "imageUrl": "https://picsum.photos/seed/505/600/400",
-      "imageHint": "digital glow snake"
+      "imageUrl": "https://picsum.photos/seed/snake66/600/400",
+      "imageHint": "neon snake"
     },
     {
       "id": "tetris",
       "description": "Tetris Game Image",
-      "imageUrl": "https://picsum.photos/seed/606/600/400",
-      "imageHint": "tetris neon bricks"
+      "imageUrl": "https://picsum.photos/seed/tetris55/600/400",
+      "imageHint": "stacking blocks"
     },
     {
       "id": "flappy-bird",
       "description": "Flappy Bird Game Image",
-      "imageUrl": "https://picsum.photos/seed/707/600/400",
-      "imageHint": "stylized pixel wings"
+      "imageUrl": "https://picsum.photos/seed/bird44/600/400",
+      "imageHint": "small bird"
     },
     {
       "id": "pong",
       "description": "Pong Game Image",
-      "imageUrl": "https://picsum.photos/seed/808/600/400",
-      "imageHint": "retro laser pong"
+      "imageUrl": "https://picsum.photos/seed/pong33/600/400",
+      "imageHint": "neon ping-pong"
     }
   ]
 }
