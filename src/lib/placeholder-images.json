@@ -2,45 +2,45 @@
   "placeholderImages": [
     {
       "id": "apex-racer",
-      "description": "Apex Racer Cyberpunk Highway",
-      "imageUrl": "https://picsum.photos/seed/apex_real/600/400",
-      "imageHint": "cyberpunk highway night"
+      "description": "Apex Racer Night HUD Gameplay",
+      "imageUrl": "https://picsum.photos/seed/apex_capture/600/400",
+      "imageHint": "cyberpunk racing hud"
     },
     {
       "id": "block-blast",
-      "description": "Block Blast Puzzle",
-      "imageUrl": "https://picsum.photos/seed/block_square/600/400",
-      "imageHint": "colorful puzzle blocks"
+      "description": "Block Blast Sharp Squared Grid",
+      "imageUrl": "https://picsum.photos/seed/block_capture/600/400",
+      "imageHint": "squared puzzle grid"
     },
     {
       "id": "platformer-cube",
-      "description": "Platformer Cube Synthwave",
-      "imageUrl": "https://picsum.photos/seed/synth_landscape/600/400",
-      "imageHint": "synthwave neon landscape"
+      "description": "Platformer Cube Synthwave Gameplay",
+      "imageUrl": "https://picsum.photos/seed/platformer_capture/600/400",
+      "imageHint": "neon synthwave platformer"
     },
     {
       "id": "snake",
-      "description": "Neon Snake Retro",
-      "imageUrl": "https://picsum.photos/seed/snake_neon/600/400",
-      "imageHint": "neon snake game"
+      "description": "Neon Snake Retro Gameplay",
+      "imageUrl": "https://picsum.photos/seed/snake_capture/600/400",
+      "imageHint": "neon snake retro"
     },
     {
       "id": "tetris",
-      "description": "Classic Tetris Blocks",
-      "imageUrl": "https://picsum.photos/seed/tetris_stack/600/400",
-      "imageHint": "tetris blocks pattern"
+      "description": "Tetris Neon Stack Capture",
+      "imageUrl": "https://picsum.photos/seed/tetris_capture/600/400",
+      "imageHint": "neon tetris gameplay"
     },
     {
       "id": "flappy-bird",
-      "description": "Stylized Flappy Bird",
-      "imageUrl": "https://picsum.photos/seed/bird_fly/600/400",
-      "imageHint": "flying bird game"
+      "description": "Flappy Bird Stylized Sky Capture",
+      "imageUrl": "https://picsum.photos/seed/flappy_capture/600/400",
+      "imageHint": "bird flying stylized"
     },
     {
       "id": "pong",
-      "description": "Pro Neon Pong",
-      "imageUrl": "https://picsum.photos/seed/pong_minimal/600/400",
-      "imageHint": "minimalist neon pong"
+      "description": "Pro Neon Pong Capture",
+      "imageUrl": "https://picsum.photos/seed/pong_capture/600/400",
+      "imageHint": "neon pong minimal"
     }
   ]
 }

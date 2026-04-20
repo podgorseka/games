@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -246,12 +247,12 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       onMouseUp={onDragEnd}
       onTouchEnd={onDragEnd}
     >
-      <div className="text-4xl font-headline font-bold text-primary drop-shadow-sm">Score: {score}</div>
+      <div className="text-4xl font-headline font-bold text-primary drop-shadow-sm italic tracking-tighter">SCORE: {score}</div>
 
       <div className="relative">
         <div 
           id="blast-grid"
-          className="grid gap-[2px] bg-slate-200 p-[2px] rounded-lg border-4 border-slate-300 shadow-2xl"
+          className="grid gap-[4px] bg-slate-800 p-[4px] rounded-none border-[6px] border-slate-700 shadow-[0_0_50px_rgba(0,0,0,0.5)]"
           style={{ 
             width: 'min(90vw, 450px)', 
             height: 'min(90vw, 450px)',
@@ -264,21 +265,21 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
               <div 
                 key={`${r}-${c}`} 
                 className={cn(
-                  "aspect-square rounded-[2px] transition-all",
-                  isClearing ? "animate-pulse brightness-200 scale-95" : "duration-200"
+                  "aspect-square rounded-none transition-all",
+                  isClearing ? "animate-pulse brightness-200 scale-90" : "duration-200"
                 )}
-                style={{ backgroundColor: cell || '#f8fafc' }}
+                style={{ backgroundColor: cell || '#1e293b' }}
               />
             );
           }))}
         </div>
 
         {isGameOver && (
-          <div className="absolute inset-0 bg-background/95 flex flex-col items-center justify-center p-4 text-center z-20 backdrop-blur-md rounded-xl">
-            <h2 className="text-5xl font-headline font-bold text-destructive mb-4 tracking-tighter">PLUS DE COUPS !</h2>
+          <div className="absolute inset-0 bg-background/95 flex flex-col items-center justify-center p-4 text-center z-20 backdrop-blur-md rounded-none">
+            <h2 className="text-5xl font-headline font-bold text-destructive mb-4 tracking-tighter italic">GAME OVER</h2>
             <p className="text-2xl font-bold mb-8">Score Final: {score}</p>
-            <button onClick={startNewGame} className="bg-primary text-white rounded-full px-12 py-6 text-xl font-bold shadow-2xl hover:scale-105 transition-transform flex items-center">
-              <RotateCcw className="mr-3 h-6 w-6" /> Rejouer
+            <button onClick={startNewGame} className="bg-primary text-white rounded-none px-12 py-6 text-xl font-bold shadow-2xl hover:scale-105 transition-transform flex items-center italic">
+              <RotateCcw className="mr-3 h-6 w-6" /> REJOUER
             </button>
           </div>
         )}
@@ -299,12 +300,12 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
             <div className="grid" style={{ 
               gridTemplateRows: `repeat(${p.shape.length}, 1fr)`, 
               gridTemplateColumns: `repeat(${p.shape[0].length}, 1fr)`, 
-              gap: '2px' 
+              gap: '3px' 
             }}>
               {p.shape.map((row, r) => row.map((val, c) => (
                 <div 
                   key={`${r}-${c}`} 
-                  className="w-7 h-7 md:w-8 md:h-8 rounded-[2px] border border-black/5 shadow-sm"
+                  className="w-7 h-7 md:w-8 md:h-8 rounded-none border border-white/5 shadow-inner"
                   style={{ backgroundColor: val ? p.color : 'transparent', opacity: val ? 1 : 0 }}
                 />
               )))}
@@ -314,11 +315,11 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       </div>
       
       <div className="flex flex-col items-center gap-2">
-        <p className="text-muted-foreground text-xs font-bold bg-muted/50 px-4 py-2 rounded-full uppercase tracking-wider">
-          Score x2 si vous videz la grille !
+        <p className="text-muted-foreground text-xs font-black bg-muted/50 px-6 py-2 rounded-none uppercase tracking-widest border border-white/5">
+          SCORE X2 SI GRILLE VIDE
         </p>
-        <Button variant="ghost" size="sm" onClick={startNewGame} className="text-muted-foreground hover:text-primary">
-          <RotateCcw className="mr-2 h-4 w-4" /> Réinitialiser le plateau
+        <Button variant="ghost" size="sm" onClick={startNewGame} className="text-muted-foreground hover:text-primary rounded-none">
+          <RotateCcw className="mr-2 h-4 w-4" /> Réinitialiser
         </Button>
       </div>
     </div>
