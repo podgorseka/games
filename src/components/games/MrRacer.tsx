@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Pause, User } from 'lucide-react';
+import { RotateCcw, Pause, User, Zap } from 'lucide-react';
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 450;
@@ -25,7 +25,7 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const targetSpeed = useRef(0);
   const roadOffset = useRef(0);
   const keys = useRef<{ [key: string]: boolean }>({});
-  const traffic = useRef<{ x: number, z: number, speed: number, color: string, type: 'car' | 'truck' }[]>([]);
+  const traffic = useRef<{ x: number, z: number, speed: number, color: string, type: 'car' | 'truck', id: number }[]>([]);
   const environment = useRef<{ x: number, z: number, type: 'building_left' | 'building_right' | 'lamp' }[]>([]);
 
   const initGame = useCallback(() => {
@@ -47,25 +47,30 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   }, []);
 
   const spawnTraffic = useCallback(() => {
-    if (traffic.current.length > 3) return;
+    if (traffic.current.length > 4) return;
     const lanes = [-160, -60, 60, 160];
     const laneX = lanes[Math.floor(Math.random() * lanes.length)];
-    const colors = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#4b5563'];
+    
+    // Éviter de spawner sur une voiture existante
+    if (traffic.current.some(t => Math.abs(t.z - 6000) < 1000 && t.x === laneX)) return;
+
+    const colors = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#4b5563', '#ffffff', '#000000'];
     traffic.current.push({
+      id: Math.random(),
       x: laneX,
-      z: 4000 + Math.random() * 2000,
-      speed: 0.02 + Math.random() * 0.04,
+      z: 6000 + Math.random() * 2000,
+      speed: 0.02 + Math.random() * 0.05,
       color: colors[Math.floor(Math.random() * colors.length)],
       type: Math.random() > 0.85 ? 'truck' : 'car'
     });
   }, []);
 
   const spawnEnv = (zPos: number) => {
-    environment.current.push({ x: -450, z: zPos, type: 'building_left' });
-    environment.current.push({ x: 450, z: zPos, type: 'building_right' });
+    environment.current.push({ x: -500, z: zPos, type: 'building_left' });
+    environment.current.push({ x: 500, z: zPos, type: 'building_right' });
     if (zPos % 800 === 0) {
-      environment.current.push({ x: -280, z: zPos, type: 'lamp' });
-      environment.current.push({ x: 280, z: zPos, type: 'lamp' });
+      environment.current.push({ x: -300, z: zPos, type: 'lamp' });
+      environment.current.push({ x: 300, z: zPos, type: 'lamp' });
     }
   };
 
@@ -73,49 +78,53 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     if (gameOver) return;
 
     // Movement
-    if (keys.current['LeftPress']) targetX.current -= 15;
-    if (keys.current['RightPress']) targetX.current += 15;
-    targetX.current = Math.max(-220, Math.min(220, targetX.current));
-    playerX.current += (targetX.current - playerX.current) * 0.12;
+    if (keys.current['LeftPress']) targetX.current -= 18;
+    if (keys.current['RightPress']) targetX.current += 18;
+    targetX.current = Math.max(-240, Math.min(240, targetX.current));
+    playerX.current += (targetX.current - playerX.current) * 0.15;
 
     // Speed
-    if (keys.current['Accel']) targetSpeed.current = Math.min(0.4, targetSpeed.current + 0.004);
-    else if (keys.current['Brake']) targetSpeed.current = Math.max(0, targetSpeed.current - 0.012);
-    else targetSpeed.current = Math.max(0.05, targetSpeed.current - 0.002);
+    if (keys.current['Accel']) targetSpeed.current = Math.min(0.45, targetSpeed.current + 0.005);
+    else if (keys.current['Brake']) targetSpeed.current = Math.max(0, targetSpeed.current - 0.015);
+    else targetSpeed.current = Math.max(0.05, targetSpeed.current - 0.003);
 
-    playerSpeed.current += (targetSpeed.current - playerSpeed.current) * 0.08;
-    const currentKph = Math.floor(playerSpeed.current * 480);
+    playerSpeed.current += (targetSpeed.current - playerSpeed.current) * 0.1;
+    const currentKph = Math.floor(playerSpeed.current * 495);
     setSpeedKph(currentKph);
     
     const distInc = playerSpeed.current * 0.01;
     setDistance(d => d + distInc);
-    roadOffset.current = (roadOffset.current + playerSpeed.current * 250) % 1000;
+    roadOffset.current = (roadOffset.current + playerSpeed.current * 300) % 1000;
 
     // Traffic update
-    if (Math.random() < 0.012) spawnTraffic();
+    if (Math.random() < 0.015) spawnTraffic();
     traffic.current.forEach(car => {
       const relSpeed = (playerSpeed.current - car.speed) * 200;
       car.z -= relSpeed;
 
-      // Real collision check based on volume
-      const carWidth = car.type === 'truck' ? 120 : 90;
-      if (car.z > -20 && car.z < 100) {
-        if (Math.abs(car.x - playerX.current) < carWidth - 15) {
+      // Real 3D collision check
+      const carWidth = car.type === 'truck' ? 125 : 95;
+      const carHeight = car.type === 'truck' ? 220 : 140;
+      
+      // Hitbox strictly on the model
+      if (car.z > -10 && car.z < 110) {
+        const dx = Math.abs(car.x - playerX.current);
+        if (dx < carWidth - 25) {
           setGameOver(true);
         }
       }
     });
-    traffic.current = traffic.current.filter(c => c.z > -1000 && c.z < 8000);
+    traffic.current = traffic.current.filter(c => c.z > -1500 && c.z < 8500);
 
     // Env update
     environment.current.forEach(env => {
-      env.z -= playerSpeed.current * 250;
-      if (env.z < -500) {
+      env.z -= playerSpeed.current * 300;
+      if (env.z < -800) {
         env.z += 8000;
       }
     });
 
-    setScore(s => s + Math.floor(playerSpeed.current * 10));
+    setScore(s => s + Math.floor(playerSpeed.current * 15));
   }, [gameOver, spawnTraffic]);
 
   const drawVehicle = (ctx: CanvasRenderingContext2D, x: number, z: number, color: string, isPlayer: boolean = false, type: 'car' | 'truck' = 'car') => {
@@ -125,57 +134,71 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     
     if (screenY < HORIZON || scale < 0.01) return;
 
-    const vW = (type === 'truck' ? 240 : 180) * scale;
-    const vH = (type === 'truck' ? 220 : 140) * scale;
+    const vW = (type === 'truck' ? 260 : 190) * scale;
+    const vH = (type === 'truck' ? 240 : 150) * scale;
     const roofY = screenY - vH;
 
     ctx.save();
     
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    // High-fidelity shadow
+    const shadowGrad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, vW * 0.8);
+    shadowGrad.addColorStop(0, 'rgba(0,0,0,0.6)');
+    shadowGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = shadowGrad;
     ctx.beginPath();
-    ctx.ellipse(screenX, screenY, vW * 0.7, vH * 0.15, 0, 0, Math.PI * 2);
+    ctx.ellipse(screenX, screenY, vW * 0.8, vH * 0.2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body
+    // Body with 3D depth
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.roundRect(screenX - vW / 2, roofY, vW, vH, 15 * scale);
+    ctx.roundRect(screenX - vW / 2, roofY, vW, vH, 12 * scale);
     ctx.fill();
+
+    // Side reflections (Volume effect)
+    const sideW = vW * 0.1;
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(screenX - vW/2, roofY, sideW, vH);
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(screenX + vW/2 - sideW, roofY, sideW, vH);
 
     // Rear Window
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillStyle = '#0f172a';
     ctx.beginPath();
-    ctx.roundRect(screenX - vW * 0.4, roofY + vH * 0.15, vW * 0.8, vH * 0.4, 8 * scale);
+    ctx.roundRect(screenX - vW * 0.4, roofY + vH * 0.1, vW * 0.8, vH * 0.45, 6 * scale);
     ctx.fill();
 
-    // Rear Lights (Bloom effect)
-    const lightW = vW * 0.3;
-    const lightH = vH * 0.15;
-    const lightY = roofY + vH * 0.65;
+    // Rear Lights with Bloom
+    const lightW = vW * 0.32;
+    const lightH = vH * 0.18;
+    const lightY = roofY + vH * 0.62;
     
-    ctx.shadowBlur = 25 * scale;
-    ctx.shadowColor = '#ff0000';
-    ctx.fillStyle = isPlayer ? '#ff3333' : '#aa0000';
+    ctx.shadowBlur = 30 * scale;
+    ctx.shadowColor = '#ef4444';
+    ctx.fillStyle = isPlayer ? '#f87171' : '#991b1b';
     
     if (isPlayer) {
-      // Modern LED bar
+      // Modern Cyberpunk LED bar
       ctx.beginPath();
-      ctx.roundRect(screenX - vW * 0.45, lightY, vW * 0.9, vH * 0.08, 5 * scale);
+      ctx.roundRect(screenX - vW * 0.45, lightY, vW * 0.9, vH * 0.1, 4 * scale);
       ctx.fill();
     } else {
-      ctx.fillRect(screenX - vW * 0.45, lightY, lightW, lightH);
-      ctx.fillRect(screenX + vW * 0.45 - lightW, lightY, lightW, lightH);
+      ctx.beginPath();
+      ctx.roundRect(screenX - vW * 0.46, lightY, lightW, lightH, 3 * scale);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(screenX + vW * 0.46 - lightW, lightY, lightW, lightH, 3 * scale);
+      ctx.fill();
     }
     
     // License Plate
     ctx.shadowBlur = 0;
-    ctx.fillStyle = 'white';
-    ctx.fillRect(screenX - vW * 0.15, roofY + vH * 0.75, vW * 0.3, vH * 0.15);
-    ctx.fillStyle = 'black';
-    ctx.font = `${Math.floor(10 * scale)}px Arial`;
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(screenX - vW * 0.15, roofY + vH * 0.78, vW * 0.3, vH * 0.12);
+    ctx.fillStyle = '#1e293b';
+    ctx.font = `bold ${Math.floor(12 * scale)}px Inter`;
     ctx.textAlign = 'center';
-    ctx.fillText(isPlayer ? "MR RACER" : "TRAFFIC", screenX, roofY + vH * 0.87);
+    ctx.fillText(isPlayer ? "PLAYER" : "TRAFFIC", screenX, roofY + vH * 0.88);
 
     ctx.restore();
   };
@@ -189,74 +212,83 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
       if (y < HORIZON) return;
 
       if (env.type.startsWith('building')) {
-        const bW = 600 * scale;
-        const bH = 1200 * scale;
-        ctx.fillStyle = env.type.includes('left') ? '#334155' : '#475569';
+        const bW = 700 * scale;
+        const bH = 1500 * scale;
+        ctx.fillStyle = env.type.includes('left') ? '#1e293b' : '#334155';
         ctx.fillRect(x - bW / 2, y - bH, bW, bH);
         
-        // Windows
-        ctx.fillStyle = 'rgba(255,255,100,0.1)';
-        for (let row = 0; row < 10; row++) {
-          for (let col = 0; col < 4; col++) {
-            if (Math.random() > 0.3) {
-              ctx.fillRect(x - bW/2 + 20*scale + col*140*scale, y - bH + 50*scale + row*100*scale, 80*scale, 60*scale);
+        // Dynamic Windows
+        ctx.fillStyle = 'rgba(254,240,138,0.15)';
+        for (let row = 0; row < 12; row++) {
+          for (let col = 0; col < 5; col++) {
+            if ((Math.sin(env.z + row + col) > 0.4)) {
+              ctx.fillRect(x - bW/2 + 30*scale + col*130*scale, y - bH + 60*scale + row*110*scale, 90*scale, 70*scale);
             }
           }
         }
       } else if (env.type === 'lamp') {
-        const lH = 400 * scale;
-        ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 8 * scale;
+        const lH = 450 * scale;
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 10 * scale;
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x, y - lH);
-        ctx.lineTo(x + (env.x < 0 ? 80 : -80) * scale, y - lH);
+        ctx.lineTo(x + (env.x < 0 ? 100 : -100) * scale, y - lH);
         ctx.stroke();
         
-        // Light glow
-        const lx = x + (env.x < 0 ? 80 : -80) * scale;
+        // Volumetric Lamp Glow
+        const lx = x + (env.x < 0 ? 100 : -100) * scale;
         const ly = y - lH;
-        const grad = ctx.createRadialGradient(lx, ly, 0, lx, ly, 100 * scale);
-        grad.addColorStop(0, 'rgba(255,255,200,0.6)');
+        const grad = ctx.createRadialGradient(lx, ly, 0, lx, ly, 150 * scale);
+        grad.addColorStop(0, 'rgba(254,240,138,0.5)');
         grad.addColorStop(1, 'transparent');
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(lx, ly, 100 * scale, 0, Math.PI * 2);
+        ctx.arc(lx, ly, 150 * scale, 0, Math.PI * 2);
         ctx.fill();
       }
     });
   };
 
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
-    // Sky
+    // Cinematic Sky
     const sky = ctx.createLinearGradient(0, 0, 0, HORIZON);
     sky.addColorStop(0, '#020617');
-    sky.addColorStop(1, '#1e293b');
+    sky.addColorStop(0.7, '#1e293b');
+    sky.addColorStop(1, '#334155');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
 
-    // Ground (Wet Road)
-    ctx.fillStyle = '#0f172a';
+    // Wet Road Surface
+    ctx.fillStyle = '#020617';
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
 
-    // Fog
-    const fog = ctx.createLinearGradient(0, HORIZON, 0, HORIZON + 200);
-    fog.addColorStop(0, '#1e293b');
+    // Fog of distance
+    const fog = ctx.createLinearGradient(0, HORIZON, 0, HORIZON + 150);
+    fog.addColorStop(0, '#334155');
     fog.addColorStop(1, 'transparent');
     ctx.fillStyle = fog;
-    ctx.fillRect(0, HORIZON, CANVAS_WIDTH, 200);
+    ctx.fillRect(0, HORIZON, CANVAS_WIDTH, 150);
 
-    // Lane Markings
-    for (let i = 0; i < 20; i++) {
-      const z = i * 250 - roadOffset.current;
+    // Road Texture Grain
+    ctx.fillStyle = 'rgba(255,255,255,0.02)';
+    for(let i=0; i<100; i++) {
+        const rx = Math.random() * CANVAS_WIDTH;
+        const ry = HORIZON + Math.random() * (CANVAS_HEIGHT - HORIZON);
+        ctx.fillRect(rx, ry, 1, 1);
+    }
+
+    // High-contrast Lane Markings
+    for (let i = 0; i < 22; i++) {
+      const z = i * 280 - roadOffset.current;
       if (z < 0) continue;
       const s = FOV / (FOV + z);
       const y = HORIZON + (CANVAS_HEIGHT - HORIZON) * s;
-      const h = 120 * s;
-      const w = 15 * s;
+      const h = 150 * s;
+      const w = 20 * s;
 
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      [-110, 0, 110].forEach(lx => {
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      [-120, 0, 120].forEach(lx => {
         const x = CANVAS_WIDTH / 2 + (lx * s * 5) - (playerX.current * s * 4.5);
         ctx.fillRect(x - w / 2, y, w, h);
       });
@@ -264,13 +296,13 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
     drawEnvironment(ctx);
 
-    // Vehicles sorted by distance
-    const all = [
+    // Render vehicles in correct depth order
+    const allVehicles = [
       ...traffic.current.map(c => ({ ...c, isPlayer: false })),
-      { x: playerX.current, z: 60, speed: 0, color: '#000000', type: 'car' as const, isPlayer: true }
+      { x: playerX.current, z: 65, speed: 0, color: '#0f172a', type: 'car' as const, isPlayer: true, id: 0 }
     ].sort((a, b) => b.z - a.z);
 
-    all.forEach(v => drawVehicle(ctx, v.x, v.z, v.color, v.isPlayer, v.type));
+    allVehicles.forEach(v => drawVehicle(ctx, v.x, v.z, v.color, v.isPlayer, v.type));
 
   }, [roadOffset.current]);
 
@@ -303,73 +335,74 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center bg-[#020617] overflow-hidden touch-none select-none">
-      {/* REALISTIC HUD */}
-      <div className="absolute top-4 left-4 flex flex-col gap-2 z-20 pointer-events-none">
-        <div className="flex items-center gap-2">
-           <div className="bg-black/50 p-2 rounded-lg backdrop-blur-md">
+      {/* PROFESSIONAL RACING HUD */}
+      <div className="absolute top-6 left-6 flex flex-col gap-4 z-20 pointer-events-none">
+        <div className="flex items-center gap-3">
+           <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xl border border-white/20 shadow-2xl">
              <Pause className="text-white h-5 w-5" />
            </div>
-           <div className="bg-yellow-400 px-3 py-1 rounded text-black font-black text-sm italic">RACE 1</div>
-        </div>
-        <div className="space-y-1 mt-2">
-           <div className="bg-black/40 px-3 py-1 rounded border-l-4 border-slate-400 flex items-center gap-2">
-             <div className="h-6 w-6 bg-slate-800 rounded-full flex items-center justify-center"><User className="h-4 w-4 text-white" /></div>
-             <span className="text-white text-xs font-bold uppercase tracking-tighter">Mamba</span>
+           <div className="bg-yellow-400 px-4 py-1.5 rounded-lg text-black font-black text-sm italic tracking-tighter shadow-xl border-b-4 border-yellow-600">
+             RACE 1
            </div>
-           <div className="bg-yellow-400/80 px-3 py-1 rounded border-l-4 border-yellow-600 flex items-center gap-2">
-             <div className="h-6 w-6 bg-yellow-600 rounded-full flex items-center justify-center"><User className="h-4 w-4 text-white" /></div>
-             <span className="text-black text-xs font-bold uppercase tracking-tighter italic">You</span>
+        </div>
+        <div className="space-y-2 mt-2">
+           <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl border-l-4 border-slate-400 flex items-center gap-3 shadow-lg">
+             <div className="h-7 w-7 bg-slate-800 rounded-full flex items-center justify-center border border-white/10"><User className="h-4 w-4 text-slate-300" /></div>
+             <span className="text-white text-[11px] font-bold uppercase tracking-widest opacity-80">RIVAL_01</span>
+           </div>
+           <div className="bg-yellow-400/90 backdrop-blur-md px-4 py-2 rounded-xl border-l-4 border-yellow-700 flex items-center gap-3 shadow-xl">
+             <div className="h-7 w-7 bg-yellow-600 rounded-full flex items-center justify-center border border-yellow-300"><User className="h-4 w-4 text-white" /></div>
+             <span className="text-black text-[11px] font-black uppercase tracking-widest italic">YOU</span>
            </div>
         </div>
       </div>
 
-      <div className="absolute top-4 right-4 text-right z-20 pointer-events-none space-y-1">
-        <div className="bg-yellow-400/90 px-4 py-2 rounded-lg backdrop-blur-md">
-          <div className="text-[10px] text-black font-bold uppercase leading-none">Gear</div>
-          <div className="text-2xl text-black font-black italic">3/7</div>
+      <div className="absolute top-6 right-6 text-right z-20 pointer-events-none space-y-3">
+        <div className="bg-white/5 backdrop-blur-xl px-6 py-3 rounded-2xl border border-white/10 shadow-2xl">
+          <div className="text-[10px] text-white/60 font-black uppercase leading-none tracking-widest mb-1">Gear</div>
+          <div className="text-3xl text-white font-black italic tracking-tighter">4 <span className="text-xs opacity-40">/ 7</span></div>
         </div>
-        <div className="bg-black/40 px-4 py-2 rounded-lg backdrop-blur-md text-white border border-white/10">
-          <div className="text-[10px] font-bold uppercase leading-none opacity-60">KPH</div>
-          <div className="text-3xl font-black italic tracking-tighter">{speedKph}</div>
+        <div className="bg-white/10 backdrop-blur-2xl px-6 py-4 rounded-2xl border border-white/20 shadow-2xl flex flex-col items-end">
+          <div className="text-[10px] font-black uppercase leading-none text-yellow-400 tracking-widest mb-1">KPH</div>
+          <div className="text-5xl font-black italic text-white tracking-tighter leading-none">{speedKph}</div>
         </div>
-        <div className="text-white/60 text-[10px] font-bold uppercase tracking-widest pt-1">
-          Distance {distance.toFixed(1)}/2.0 KM
+        <div className="bg-black/40 backdrop-blur-sm px-4 py-2 rounded-full border border-white/5 flex items-center gap-2">
+          <Zap className="h-3 w-3 text-yellow-400 fill-current" />
+          <span className="text-white/80 text-[11px] font-black uppercase tracking-widest">
+            Dist: {distance.toFixed(1)} KM
+          </span>
         </div>
-      </div>
-
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-10">
-        <span className="text-[200px] font-black italic text-yellow-400">1</span>
       </div>
 
       <canvas ref={canvasRef} width={800} height={450} className="w-full h-auto max-h-screen shadow-2xl" />
 
-      {/* PEDALS */}
+      {/* PEDALS INTERFACE */}
       {!gameOver && (
-        <div className="absolute bottom-6 inset-x-6 flex justify-between z-30">
+        <div className="absolute bottom-8 inset-x-8 flex justify-between z-30">
           <div 
-            className="w-24 h-36 bg-black/60 border-2 border-white/20 rounded-2xl flex flex-col items-center justify-center cursor-pointer active:bg-red-900/40 transition-all active:scale-95"
+            className="w-28 h-40 bg-white/5 backdrop-blur-md border-2 border-white/10 rounded-3xl flex flex-col items-center justify-center cursor-pointer active:bg-red-500/20 transition-all active:scale-95 shadow-2xl"
             onPointerDown={() => keys.current['Brake'] = true}
             onPointerUp={() => keys.current['Brake'] = false}
             onPointerLeave={() => keys.current['Brake'] = false}
           >
-            <div className="text-white/30 text-[10px] font-black uppercase mb-4">Brake</div>
-            <div className="w-16 h-4 bg-white/20 rounded-full" />
-            <div className="w-16 h-2 bg-white/10 rounded-full mt-2" />
+            <div className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-6">Brake</div>
+            <div className="w-20 h-5 bg-white/10 rounded-full border border-white/20" />
+            <div className="w-20 h-2 bg-white/5 rounded-full mt-3" />
           </div>
 
           <div 
-            className="w-24 h-44 bg-black/60 border-2 border-white/20 rounded-2xl flex flex-col items-center justify-center cursor-pointer active:bg-yellow-500/40 transition-all active:scale-95"
+            className="w-28 h-52 bg-white/5 backdrop-blur-md border-2 border-white/10 rounded-3xl flex flex-col items-center justify-center cursor-pointer active:bg-yellow-400/20 transition-all active:scale-95 shadow-2xl"
             onPointerDown={() => keys.current['Accel'] = true}
             onPointerUp={() => keys.current['Accel'] = false}
             onPointerLeave={() => keys.current['Accel'] = false}
           >
-            <div className="text-white/30 text-[10px] font-black uppercase mb-4">Accel</div>
-            <div className="w-10 h-28 bg-yellow-400/20 rounded-xl border border-yellow-400/30" />
+            <div className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-6">Accel</div>
+            <div className="w-12 h-36 bg-yellow-400/10 rounded-2xl border border-yellow-400/30" />
           </div>
         </div>
       )}
 
-      {/* OVERLAY CONTROLS (Steering) */}
+      {/* TOUCH AREAS FOR STEERING */}
       {!gameOver && (
         <div className="absolute inset-0 z-10 flex">
           <div className="flex-1" onPointerDown={() => keys.current['LeftPress'] = true} onPointerUp={() => keys.current['LeftPress'] = false} />
@@ -379,10 +412,10 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
       {gameOver && (
         <div className="absolute inset-0 bg-black/98 flex flex-col items-center justify-center p-12 text-center z-50 backdrop-blur-3xl">
-          <h2 className="text-8xl font-black text-red-600 mb-8 tracking-tighter italic drop-shadow-2xl">COLLISION</h2>
-          <p className="text-3xl text-white/80 mb-12 font-bold tracking-widest uppercase">Distance: {distance.toFixed(2)} KM</p>
+          <h2 className="text-8xl font-black text-red-600 mb-6 tracking-tighter italic drop-shadow-2xl">WASTED</h2>
+          <p className="text-3xl text-white/60 mb-12 font-bold tracking-widest uppercase">Distance: {distance.toFixed(2)} KM</p>
           <Button onClick={initGame} size="lg" className="rounded-2xl px-20 py-14 text-4xl font-black bg-yellow-400 text-black hover:scale-110 transition-transform shadow-2xl border-b-8 border-yellow-600 italic">
-            TRY AGAIN
+            RESTART RACE
           </Button>
         </div>
       )}
