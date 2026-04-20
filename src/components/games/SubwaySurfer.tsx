@@ -1,16 +1,14 @@
-
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Trophy, CheckCircle2 } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
   const [coins, setCoins] = useState(0);
-  const [showMission, setShowMission] = useState(true);
   const gameLoopRef = useRef<number>(0);
 
   const CANVAS_WIDTH = 400;
@@ -45,8 +43,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     setScore(0);
     setCoins(0);
     setGameOver(false);
-    setShowMission(true);
-    setTimeout(() => setShowMission(false), 3000);
   }, []);
 
   const moveLane = (dir: number) => {
@@ -376,23 +372,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
              </div>
           </div>
       </div>
-
-      {/* Mission Banner */}
-      {showMission && (
-        <div className="absolute top-32 left-1/2 -translate-x-1/2 z-30 w-[85%] bg-blue-900/90 backdrop-blur-xl border-4 border-white/20 rounded-2xl p-4 shadow-2xl animate-in fade-in zoom-in slide-in-from-top-12 duration-500">
-           <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-lg">
-                 <Trophy className="text-white h-8 w-8" />
-              </div>
-              <div className="flex-1">
-                 <div className="text-white font-headline font-bold text-lg uppercase tracking-wider">Score 1000 points in one run</div>
-                 <div className="flex items-center gap-2 text-green-400 font-bold text-sm mt-1">
-                    <CheckCircle2 className="h-4 w-4" /> MISSION COMPLETE
-                 </div>
-              </div>
-           </div>
-        </div>
-      )}
 
       <canvas ref={canvasRef} width={400} height={700} className="w-full h-auto max-h-[98vh] shadow-2xl" />
       
