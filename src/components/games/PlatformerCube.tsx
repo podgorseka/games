@@ -53,7 +53,7 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
       playerVelocity.current = 0;
     }
 
-    // Generation
+    // Generation logic
     if (obstacles.current.length === 0 || obstacles.current[obstacles.current.length - 1].x < 500) {
       if (Math.random() < 0.03) {
         obstacles.current.push({ 
@@ -63,8 +63,8 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
           type: Math.random() > 0.5 ? 'spike' : 'block'
         });
       }
-      // Powerup generation
-      if (Math.random() < 0.01) {
+      // Powerup generation - reduced frequency (from 0.01 to 0.003)
+      if (Math.random() < 0.003) {
         powerups.current.push({
           x: 900,
           y: groundY - 150 - Math.random() * 100,
