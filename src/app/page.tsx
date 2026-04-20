@@ -12,7 +12,9 @@ import {
   ArrowUpRight,
   X,
   Keyboard,
-  User as UserIcon
+  User as UserIcon,
+  Car,
+  Zap
 } from 'lucide-react';
 import GameCard from '@/components/GameCard';
 import Leaderboard from '@/components/Leaderboard';
@@ -31,9 +33,13 @@ import FlappyBird from '@/components/games/FlappyBird';
 import BlockBlast from '@/components/games/BlockBlast';
 import PlatformerCube from '@/components/games/PlatformerCube';
 import Pong from '@/components/games/Pong';
+import MrRacer from '@/components/games/MrRacer';
+import SubwaySurfer from '@/components/games/SubwaySurfer';
 
 const GAMES = [
   { id: 'block-blast', name: 'Block Blast', description: 'Place blocks and explode full lines', icon: <Box /> },
+  { id: 'subway-surfer', name: 'Subway Surfer', description: 'Run, jump and slide through obstacles', icon: <Zap /> },
+  { id: 'mr-racer', name: 'Mr Racer', description: 'Dodge traffic at high speed on the highway', icon: <Car /> },
   { id: 'platformer-cube', name: 'Platformer Cube', description: 'Jump over obstacles with your cube buddy', icon: <MoveRight /> },
   { id: 'snake', name: 'Snake', description: 'Classic snake game with smooth controls', icon: <CircleDot /> },
   { id: 'tetris', name: 'Tetris', description: 'Classic brick breaking strategy', icon: <Grid3X3 /> },
@@ -89,6 +95,8 @@ export default function Home() {
       case 'block-blast': return <BlockBlast isMobile={isMobile} onGameOver={handleGameOver} />;
       case 'platformer-cube': return <PlatformerCube isMobile={isMobile} onGameOver={handleGameOver} />;
       case 'pong': return <Pong isMobile={isMobile} onGameOver={handleGameOver} />;
+      case 'mr-racer': return <MrRacer isMobile={isMobile} onGameOver={handleGameOver} />;
+      case 'subway-surfer': return <SubwaySurfer isMobile={isMobile} onGameOver={handleGameOver} />;
       default: return null;
     }
   };
@@ -151,7 +159,7 @@ export default function Home() {
             YOUR ULTIMATE <span className="text-primary italic">PLAYGROUND</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Experience 6 addictive mini-games designed for both desktop and mobile. 
+            Experience 8 addictive mini-games designed for both desktop and mobile. 
             All scores are saved locally on your device!
           </p>
         </section>

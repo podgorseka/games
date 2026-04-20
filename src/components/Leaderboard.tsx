@@ -1,3 +1,4 @@
+
 "use client"
 
 import React from 'react';
@@ -6,9 +7,11 @@ import { Trophy, Medal, User, Gamepad2 } from 'lucide-react';
 import { getScores, type ScoreEntry } from '@/lib/storage';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
-const GAME_IDS = ['block-blast', 'platformer-cube', 'snake', 'tetris', 'flappy-bird', 'pong'];
+const GAME_IDS = ['block-blast', 'subway-surfer', 'mr-racer', 'platformer-cube', 'snake', 'tetris', 'flappy-bird', 'pong'];
 const GAME_NAMES: Record<string, string> = {
   'block-blast': 'Block Blast',
+  'subway-surfer': 'Subway Surfer',
+  'mr-racer': 'Mr Racer',
   'platformer-cube': 'Platformer Cube',
   'snake': 'Snake',
   'tetris': 'Tetris',
