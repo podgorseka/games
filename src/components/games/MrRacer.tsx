@@ -11,113 +11,114 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const [score, setScore] = useState(0);
   const gameLoopRef = useRef<number>(0);
 
-  // Game constants
   const CANVAS_WIDTH = 400;
   const CANVAS_HEIGHT = 600;
-  
-  // 3D Perspective settings
   const HORIZON = CANVAS_HEIGHT * 0.45;
   const FOV = 100;
   
-  // Game state
-  const playerX = useRef(0); // -100 to 100
-  const enemies = useRef<{ x: number, z: number, speed: number, color: string }[]>([]);
+  const playerX = useRef(0);
+  const enemies = useRef<{ x: number, z: number, speed: number, color: string, type: string }[]>([]);
   const roadOffset = useRef(0);
   const keys = useRef<{ [key: string]: boolean }>({});
-  const gameSpeed = useRef(0.05);
+  const gameSpeed = useRef(0.08);
 
   const initGame = useCallback(() => {
     playerX.current = 0;
     enemies.current = [];
     roadOffset.current = 0;
-    gameSpeed.current = 0.05;
+    gameSpeed.current = 0.08;
     setScore(0);
     setGameOver(false);
   }, []);
 
   const spawnEnemy = useCallback(() => {
-    const laneX = (Math.floor(Math.random() * 3) - 1) * 60; // -60, 0, 60
-    const colors = ['#2600CC', '#FA1D64', '#1DFA9E', '#FAC11D', '#000000'];
+    const laneX = (Math.floor(Math.random() * 3) - 1) * 70;
+    const colors = ['#2600CC', '#FA1D64', '#1DFA9E', '#FAC11D', '#333'];
     enemies.current.push({
       x: laneX,
-      z: 500, // Distance in "meters"
-      speed: 1.5 + Math.random() * 2,
-      color: colors[Math.floor(Math.random() * colors.length)]
+      z: 600,
+      speed: 1.0 + Math.random() * 2.5,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      type: Math.random() > 0.8 ? 'truck' : 'car'
     });
   }, []);
 
   const update = useCallback(() => {
     if (gameOver) return;
 
-    // Movement
-    if (keys.current['ArrowLeft'] || keys.current['a']) playerX.current -= 4;
-    if (keys.current['ArrowRight'] || keys.current['d']) playerX.current += 4;
+    if (keys.current['ArrowLeft'] || keys.current['a']) playerX.current -= 5;
+    if (keys.current['ArrowRight'] || keys.current['d']) playerX.current += 5;
 
-    // Boundary check
-    playerX.current = Math.max(-110, Math.min(110, playerX.current));
-
-    // Road scroll
-    roadOffset.current = (roadOffset.current + gameSpeed.current * 20) % 100;
-
-    // Increase difficulty
-    gameSpeed.current += 0.00005;
+    playerX.current = Math.max(-120, Math.min(120, playerX.current));
+    roadOffset.current = (roadOffset.current + gameSpeed.current * 25) % 100;
+    gameSpeed.current += 0.00004;
     setScore(s => s + 1);
 
-    // Spawn enemies
-    if (Math.random() < 0.02) spawnEnemy();
+    if (Math.random() < 0.03) spawnEnemy();
     
-    // Update enemies
     enemies.current.forEach(e => {
       e.z -= (gameSpeed.current * 100) + e.speed;
-
-      // Collision detection (roughly when Z is close to player Z=0)
-      if (e.z > -10 && e.z < 20) {
+      if (e.z > -10 && e.z < 25) {
         const dist = Math.abs(e.x - playerX.current);
-        if (dist < 40) {
-          setGameOver(true);
-        }
+        const hitWidth = e.type === 'truck' ? 55 : 45;
+        if (dist < hitWidth) setGameOver(true);
       }
     });
 
     enemies.current = enemies.current.filter(e => e.z > -50);
   }, [gameOver, spawnEnemy]);
 
-  const drawCar = (ctx: CanvasRenderingContext2D, x: number, z: number, color: string, isPlayer: boolean = false) => {
+  const drawCar = (ctx: CanvasRenderingContext2D, x: number, z: number, color: string, isPlayer: boolean = false, type: string = 'car') => {
     const scale = FOV / (FOV + z);
     const screenX = CANVAS_WIDTH / 2 + (x - (isPlayer ? 0 : playerX.current)) * scale;
     const screenY = HORIZON + (CANVAS_HEIGHT - HORIZON) * scale;
     
     if (screenY < HORIZON) return;
 
-    const carW = 60 * scale;
-    const carH = 40 * scale;
+    const carW = (type === 'truck' ? 80 : 65) * scale;
+    const carH = (type === 'truck' ? 60 : 40) * scale;
 
     ctx.save();
     ctx.translate(screenX, screenY);
     
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(0, carH * 0.8, carW * 0.6, carH * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, carW * 0.7, carH * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body
+    // Main Body
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.roundRect(-carW/2, -carH, carW, carH, 5 * scale);
+    ctx.roundRect(-carW/2, -carH, carW, carH, 8 * scale);
     ctx.fill();
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 1 * scale;
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
     ctx.stroke();
 
-    // Cabin
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillRect(-carW/3, -carH * 0.9, (carW/3)*2, carH * 0.4);
+    // Windows
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(-carW/2.5, -carH * 0.85, (carW/2.5)*2, carH * 0.4);
+
+    // Details (Spoilers, etc)
+    if (!isPlayer && type === 'car') {
+       ctx.fillStyle = 'rgba(0,0,0,0.2)';
+       ctx.fillRect(-carW/2, -carH * 0.1, carW, 5 * scale);
+    }
 
     // Lights
-    ctx.fillStyle = isPlayer ? 'red' : 'yellow';
-    ctx.fillRect(-carW/2 + 2, -carH * 0.2, 5 * scale, 3 * scale);
-    ctx.fillRect(carW/2 - 7, -carH * 0.2, 5 * scale, 3 * scale);
+    if (isPlayer) {
+      ctx.fillStyle = 'red';
+      ctx.shadowBlur = 15 * scale;
+      ctx.shadowColor = 'red';
+      ctx.fillRect(-carW/2 + 2, -carH * 0.3, 8 * scale, 4 * scale);
+      ctx.fillRect(carW/2 - 10, -carH * 0.3, 8 * scale, 4 * scale);
+    } else {
+      ctx.fillStyle = 'white';
+      ctx.shadowBlur = 10 * scale;
+      ctx.shadowColor = 'white';
+      ctx.fillRect(-carW/2 + 2, -carH * 0.9, 8 * scale, 10 * scale);
+      ctx.fillRect(carW/2 - 10, -carH * 0.9, 8 * scale, 10 * scale);
+    }
 
     ctx.restore();
   };
@@ -125,51 +126,58 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Sky
+    // Realistic Sky (Sunset-ish)
     const skyGrad = ctx.createLinearGradient(0, 0, 0, HORIZON);
-    skyGrad.addColorStop(0, '#1a1a2e');
-    skyGrad.addColorStop(1, '#16213e');
+    skyGrad.addColorStop(0, '#0f172a');
+    skyGrad.addColorStop(0.7, '#1e293b');
+    skyGrad.addColorStop(1, '#334155');
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
 
-    // Ground / Road
-    ctx.fillStyle = '#222';
+    // Road
+    ctx.fillStyle = '#1e293b';
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
 
-    // Road Lines Perspective
+    // Lane Markings
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.setLineDash([20, 20]);
+    for (let i = -1; i <= 1; i += 2) {
+       const xOffset = i * 70;
+       ctx.beginPath();
+       ctx.moveTo(CANVAS_WIDTH/2 - (playerX.current * (FOV/(FOV+600))), HORIZON);
+       ctx.lineTo(CANVAS_WIDTH/2 + (xOffset * 10) - playerX.current, CANVAS_HEIGHT);
+       ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Moving road dashes
     ctx.strokeStyle = 'white';
     ctx.lineWidth = 2;
-    for (let i = 0; i < 50; i++) {
-      const z = i * 20 - roadOffset.current;
+    for (let i = 0; i < 40; i++) {
+      const z = i * 30 - roadOffset.current;
       if (z < 0) continue;
       const scale = FOV / (FOV + z);
-      const nextScale = FOV / (FOV + z + 10);
-      
       const y = HORIZON + (CANVAS_HEIGHT - HORIZON) * scale;
       if (y > CANVAS_HEIGHT) continue;
-
-      // Draw dashed lane markings
-      ctx.beginPath();
-      const laneWidth = 150 * scale;
-      const xLeft = CANVAS_WIDTH / 2 - laneWidth - (playerX.current * scale);
-      const xRight = CANVAS_WIDTH / 2 + laneWidth - (playerX.current * scale);
       
-      ctx.moveTo(xLeft, y); ctx.lineTo(xLeft, y + 2);
-      ctx.moveTo(xRight, y); ctx.lineTo(xRight, y + 2);
+      const dashW = 100 * scale;
+      ctx.beginPath();
+      ctx.moveTo(CANVAS_WIDTH/2 - dashW - (playerX.current * scale), y);
+      ctx.lineTo(CANVAS_WIDTH/2 - (dashW - 10 * scale) - (playerX.current * scale), y);
+      ctx.moveTo(CANVAS_WIDTH/2 + dashW - (playerX.current * scale), y);
+      ctx.lineTo(CANVAS_WIDTH/2 + (dashW - 10 * scale) - (playerX.current * scale), y);
       ctx.stroke();
     }
 
-    // Enemies (draw back to front)
-    enemies.current.sort((a, b) => b.z - a.z).forEach(e => drawCar(ctx, e.x, e.z, e.color));
+    // Enemies
+    enemies.current.sort((a, b) => b.z - a.z).forEach(e => drawCar(ctx, e.x, e.z, e.color, false, e.type));
 
-    // Player (static screen position for pseudo-3D feel, or slightly reactive)
-    drawCar(ctx, playerX.current, 15, '#C41DFA', true);
+    // Player
+    drawCar(ctx, playerX.current, 20, '#C41DFA', true);
 
-    // HUD
+    // UI
     ctx.fillStyle = 'white';
     ctx.font = 'bold 24px Space Grotesk';
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = 'black';
     ctx.fillText(`${Math.floor(score / 10)} KM`, 20, 40);
   }, [score]);
 
@@ -192,31 +200,37 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   useEffect(() => { if (gameOver) onGameOver(Math.floor(score / 10)); }, [gameOver, score, onGameOver]);
 
   const handleMobilePress = (dir: 'left' | 'right', active: boolean) => {
-    if (dir === 'left') keys.current['ArrowLeft'] = active;
-    if (dir === 'right') keys.current['ArrowRight'] = active;
+    if (dir === 'left') keys.current['a'] = active;
+    if (dir === 'right') keys.current['d'] = active;
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center bg-zinc-950 overflow-hidden touch-none">
+    <div className="relative w-full h-full flex flex-col items-center justify-center bg-slate-950 overflow-hidden touch-none">
       <canvas ref={canvasRef} width={400} height={600} className="w-full h-auto max-h-[85vh] shadow-2xl" />
       
       {isMobile && !gameOver && (
-        <div className="absolute bottom-12 left-0 right-0 flex justify-around px-8 pointer-events-auto">
-          <Button 
-            className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-xl border-4 border-white/20 active:scale-90 transition-transform"
-            onPointerDown={() => handleMobilePress('left', true)}
-            onPointerUp={() => handleMobilePress('left', false)}
-          >
-            <ArrowLeft className="h-10 w-10" />
-          </Button>
-          <Button 
-            className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-xl border-4 border-white/20 active:scale-90 transition-transform"
-            onPointerDown={() => handleMobilePress('right', true)}
-            onPointerUp={() => handleMobilePress('right', false)}
-          >
-            <ArrowRight className="h-10 w-10" />
-          </Button>
-        </div>
+        <>
+          <div className="absolute left-4 bottom-12 z-20">
+            <Button 
+              className="w-24 h-24 rounded-full bg-white/10 backdrop-blur-xl border-4 border-white/20 active:scale-90 transition-transform flex items-center justify-center"
+              onPointerDown={() => handleMobilePress('left', true)}
+              onPointerUp={() => handleMobilePress('left', false)}
+              onPointerLeave={() => handleMobilePress('left', false)}
+            >
+              <ArrowLeft className="h-12 w-12" />
+            </Button>
+          </div>
+          <div className="absolute right-4 bottom-12 z-20">
+            <Button 
+              className="w-24 h-24 rounded-full bg-white/10 backdrop-blur-xl border-4 border-white/20 active:scale-90 transition-transform flex items-center justify-center"
+              onPointerDown={() => handleMobilePress('right', true)}
+              onPointerUp={() => handleMobilePress('right', false)}
+              onPointerLeave={() => handleMobilePress('right', false)}
+            >
+              <ArrowRight className="h-12 w-12" />
+            </Button>
+          </div>
+        </>
       )}
 
       {gameOver && (
