@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, RotateCcw } from 'lucide-react';
 import { generateBlockBlastLevel } from '@/ai/flows/block-blast-level-generator';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const GRID_SIZE = 8;
 const BLOCK_COLORS = ['#C41DFA', '#2600CC', '#FA1D64', '#1DFA9E', '#FAC11D'];
@@ -14,6 +15,8 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
   const [pieces, setPieces] = useState<{ id: number, shape: number[][], color: string }[]>([]);
   const [score, setScore] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [clearingLines, setClearingLines] = useState<{ rows: number[], cols: number[] }>({ rows: [], cols: [] });
   const [draggingPiece, setDraggingPiece] = useState<{ id: number, shape: number[][], color: string } | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
@@ -36,10 +39,25 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       color: BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)]
     }));
     setPieces(newPieces);
+    return newPieces;
+  }, []);
+
+  const checkGameOver = useCallback((currentGrid: string[][], currentPieces: typeof pieces) => {
+    const canMoveAny = currentPieces.some(p => {
+      for (let r = -2; r < GRID_SIZE; r++) {
+        for (let c = -2; c < GRID_SIZE; c++) {
+          if (canPlace(p.shape, r, c, currentGrid)) return true;
+        }
+      }
+      return false;
+    });
+    return !canMoveAny;
   }, []);
 
   const fetchLevel = useCallback(async () => {
     setLoading(true);
+    setIsGameOver(false);
+    setScore(0);
     try {
       const level = await generateBlockBlastLevel({ difficulty: 'medium' });
       const newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
@@ -51,13 +69,16 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
         }
       });
       setGrid(newGrid);
-      generateNewPieces();
+      const newPieces = generateNewPieces();
+      if (checkGameOver(newGrid, newPieces)) setIsGameOver(true);
     } catch (e) {
-      setGrid(Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill('')));
-      generateNewPieces();
+      const newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
+      setGrid(newGrid);
+      const newPieces = generateNewPieces();
+      if (checkGameOver(newGrid, newPieces)) setIsGameOver(true);
     }
     setLoading(false);
-  }, [generateNewPieces]);
+  }, [generateNewPieces, checkGameOver]);
 
   useEffect(() => {
     fetchLevel();
@@ -81,7 +102,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
   const findNearestValidPosition = (piece: any, targetRow: number, targetCol: number) => {
     let bestPos = null;
     let minDistance = Infinity;
-    const searchRange = 2; // Rayon de recherche pour l'aimantation
+    const searchRange = 2;
 
     for (let r = targetRow - searchRange; r <= targetRow + searchRange; r++) {
       for (let c = targetCol - searchRange; c <= targetCol + searchRange; c++) {
@@ -101,7 +122,6 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     const piece = pieces.find(p => p.id === pieceId);
     if (!piece) return false;
 
-    // Chercher la position la plus proche si la position actuelle est invalide
     const bestPos = findNearestValidPosition(piece, startRow, startCol);
     if (!bestPos) return false;
 
@@ -109,45 +129,74 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     const finalCol = bestPos.c;
 
     const newGrid = grid.map(row => [...row]);
+    let blocksPlaced = 0;
     piece.shape.forEach((row, r) => {
       row.forEach((val, c) => {
-        if (val) newGrid[finalRow + r][finalCol + c] = piece.color;
+        if (val) {
+          newGrid[finalRow + r][finalCol + c] = piece.color;
+          blocksPlaced++;
+        }
       });
     });
+
+    // Score pour chaque bloc posé
+    let moveScore = blocksPlaced * 10;
 
     const rowsToClear: number[] = [];
     const colsToClear: number[] = [];
     for (let r = 0; r < GRID_SIZE; r++) if (newGrid[r].every(cell => cell !== '')) rowsToClear.push(r);
     for (let c = 0; c < GRID_SIZE; c++) if (newGrid.every(row => row[c] !== '')) colsToClear.push(c);
 
-    rowsToClear.forEach(r => newGrid[r] = Array(GRID_SIZE).fill(''));
-    colsToClear.forEach(c => newGrid.forEach(row => row[c] = ''));
+    if (rowsToClear.length > 0 || colsToClear.length > 0) {
+      setClearingLines({ rows: rowsToClear, cols: colsToClear });
+      
+      // Animation delay
+      setTimeout(() => {
+        rowsToClear.forEach(r => newGrid[r] = Array(GRID_SIZE).fill(''));
+        colsToClear.forEach(c => newGrid.forEach(row => row[c] = ''));
 
-    const linesCleared = rowsToClear.length + colsToClear.length;
-    if (linesCleared > 0) {
-      setScore(s => s + linesCleared * 100);
-    }
+        const linesCleared = rowsToClear.length + colsToClear.length;
+        moveScore += linesCleared * 100;
 
-    setGrid(newGrid);
-    const updatedPieces = pieces.filter(p => p.id !== pieceId);
-    if (updatedPieces.length === 0) {
-      generateNewPieces();
+        // Check Perfect Clear (si la grille est vide)
+        const isEmpty = newGrid.every(row => row.every(cell => cell === ''));
+        
+        setScore(s => {
+          const newTotal = s + moveScore;
+          return isEmpty ? newTotal * 2 : newTotal;
+        });
+
+        setGrid(newGrid);
+        setClearingLines({ rows: [], cols: [] });
+
+        // Update pieces and check for game over after clearing
+        finishTurn(pieceId, newGrid);
+      }, 150);
     } else {
-      setPieces(updatedPieces);
-      const canMoveAny = updatedPieces.some(p => {
-        for (let r = 0; r < GRID_SIZE; r++) {
-          for (let c = 0; c < GRID_SIZE; c++) {
-            if (canPlace(p.shape, r, c, newGrid)) return true;
-          }
-        }
-        return false;
-      });
-      if (!canMoveAny) onGameOver(score + (linesCleared * 100));
+      setScore(s => s + moveScore);
+      setGrid(newGrid);
+      finishTurn(pieceId, newGrid);
     }
+
     return true;
   };
 
+  const finishTurn = (usedPieceId: number, currentGrid: string[][]) => {
+    let updatedPieces = pieces.filter(p => p.id !== usedPieceId);
+    if (updatedPieces.length === 0) {
+      updatedPieces = generateNewPieces();
+    } else {
+      setPieces(updatedPieces);
+    }
+
+    if (checkGameOver(currentGrid, updatedPieces)) {
+      setIsGameOver(true);
+      onGameOver(score);
+    }
+  };
+
   const onDragStart = (piece: any, e: React.MouseEvent | React.TouchEvent) => {
+    if (isGameOver) return;
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     setDraggingPiece(piece);
@@ -177,7 +226,6 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       const shapeRows = draggingPiece.shape.length;
       const shapeCols = draggingPiece.shape[0].length;
       
-      // On centre la pièce sur le doigt
       const startRow = hoveredRow - Math.floor(shapeRows / 2);
       const startCol = hoveredCol - Math.floor(shapeCols / 2);
       
@@ -203,25 +251,46 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     >
       <div className="text-4xl font-headline font-bold text-primary">Score: {score}</div>
 
-      <div 
-        id="blast-grid"
-        className="grid grid-cols-8 gap-1 bg-muted/20 p-2 rounded-2xl border-4 border-primary shadow-2xl"
-        style={{ width: 'min(90vw, 400px)', height: 'min(90vw, 400px)' }}
-      >
-        {grid.map((row, r) => row.map((cell, c) => (
-          <div 
-            key={`${r}-${c}`} 
-            className="aspect-square rounded-md transition-all duration-300 border border-black/5"
-            style={{ backgroundColor: cell || 'rgba(0,0,0,0.03)' }}
-          />
-        )))}
+      <div className="relative">
+        <div 
+          id="blast-grid"
+          className="grid grid-cols-8 gap-1 bg-muted/20 p-2 rounded-2xl border-4 border-primary shadow-2xl overflow-hidden"
+          style={{ width: 'min(90vw, 400px)', height: 'min(90vw, 400px)' }}
+        >
+          {grid.map((row, r) => row.map((cell, c) => {
+            const isClearing = clearingLines.rows.includes(r) || clearingLines.cols.includes(c);
+            return (
+              <div 
+                key={`${r}-${c}`} 
+                className={cn(
+                  "aspect-square rounded-md transition-all border border-black/5",
+                  isClearing ? "animate-pulse brightness-150 scale-95" : "duration-300"
+                )}
+                style={{ backgroundColor: cell || 'rgba(0,0,0,0.03)' }}
+              />
+            );
+          }))}
+        </div>
+
+        {isGameOver && (
+          <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center z-20 backdrop-blur-sm rounded-xl">
+            <h2 className="text-5xl font-headline font-bold text-destructive mb-4">GAME OVER</h2>
+            <p className="text-2xl font-bold mb-6">Score Final: {score}</p>
+            <Button onClick={fetchLevel} size="lg" className="rounded-full px-12 py-8 text-xl font-bold shadow-xl">
+              <RotateCcw className="mr-3 h-6 w-6" /> Rejouer
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-6 min-h-[140px] items-center">
         {pieces.map((p) => (
           <div 
             key={p.id}
-            className={`cursor-grab active:cursor-grabbing transition-transform flex items-center justify-center ${draggingPiece?.id === p.id ? 'fixed z-50 pointer-events-none scale-125' : 'hover:scale-105'}`}
+            className={cn(
+              "cursor-grab active:cursor-grabbing transition-transform flex items-center justify-center",
+              draggingPiece?.id === p.id ? 'fixed z-50 pointer-events-none scale-125' : 'hover:scale-105'
+            )}
             style={draggingPiece?.id === p.id ? { left: mousePos.x, top: mousePos.y, transform: 'translate(-50%, -50%)' } : {}}
             onMouseDown={(e) => onDragStart(p, e)}
             onTouchStart={(e) => onDragStart(p, e)}
@@ -244,7 +313,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       </div>
       
       <p className="text-muted-foreground text-sm font-medium bg-muted/50 px-4 py-2 rounded-full">
-        Faites glisser les blocs pour remplir les lignes ! (Aimantation automatique incluse)
+        Score x2 si vous videz la grille !
       </p>
 
       <Button variant="ghost" size="sm" onClick={fetchLevel} className="mt-2">
@@ -253,3 +322,4 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     </div>
   );
 }
+
