@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 
 export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
   const [isTwoPlayer, setIsTwoPlayer] = useState(false);
@@ -39,26 +38,23 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
     const touches = 'touches' in e ? Array.from(e.touches) : [e];
     
     touches.forEach((t: any) => {
-      const clientY = 'clientY' in t ? t.clientY : t.pageY;
-      const clientX = 'clientX' in t ? t.clientX : t.pageX;
+      const clientY = 'clientY' in t ? t.clientY : (t as any).pageY;
+      const clientX = 'clientX' in t ? t.clientX : (t as any).pageX;
       
       const touchY = clientY - rect.top;
       const touchX = clientX - rect.left;
       
-      // Scale touch position to canvas internal height (500)
       const scaleY = 500 / rect.height;
       const scaledY = touchY * scaleY - paddleH / 2;
       const clampedY = Math.max(0, Math.min(500 - paddleH, scaledY));
 
       if (isTwoPlayer) {
-        // In 2P, left half controls left, right half controls right
         if (touchX < rect.width / 2) {
           playerY.current = clampedY;
         } else {
           aiY.current = clampedY;
         }
       } else {
-        // In 1P, the whole screen controls the player paddle
         playerY.current = clampedY;
       }
     });
@@ -67,7 +63,6 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
   const update = useCallback(() => {
     if (gameOver) return;
 
-    // Keyboard Controls (Desktop)
     if (keysPressed.current['w']) playerY.current = Math.max(0, playerY.current - paddleSpeed);
     if (keysPressed.current['s']) playerY.current = Math.min(500 - paddleH, playerY.current + paddleSpeed);
     if (keysPressed.current['arrowup']) playerY.current = Math.max(0, playerY.current - paddleSpeed);
@@ -77,7 +72,6 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
       if (keysPressed.current['o']) aiY.current = Math.max(0, aiY.current - paddleSpeed);
       if (keysPressed.current['l']) aiY.current = Math.min(500 - paddleH, aiY.current + paddleSpeed);
     } else {
-      // Improved AI
       const aiTarget = ball.current.y - paddleH / 2;
       const aiSpeed = 4.5 + (score / 1500);
       const diff = aiTarget - aiY.current;
@@ -85,29 +79,23 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
       aiY.current = Math.max(0, Math.min(500 - paddleH, aiY.current));
     }
 
-    // Ball movement
     ball.current.x += ball.current.vx;
     ball.current.y += ball.current.vy;
 
-    // Wall bounce
     if (ball.current.y <= 10 || ball.current.y >= 490) ball.current.vy *= -1;
 
-    // Paddle Collisions
     const ballRadius = 10;
     
-    // Left Paddle
     if (ball.current.x <= 20 + paddleW + ballRadius && 
         ball.current.y >= playerY.current && 
         ball.current.y <= playerY.current + paddleH && 
         ball.current.vx < 0) {
       ball.current.vx = Math.abs(ball.current.vx) + 0.5;
       setScore(s => s + 10);
-      // Change Y velocity based on where ball hits paddle
       const impact = (ball.current.y - (playerY.current + paddleH/2)) / (paddleH/2);
       ball.current.vy = impact * 8;
     }
 
-    // Right Paddle
     if (ball.current.x >= 780 - paddleW - ballRadius && 
         ball.current.y >= aiY.current && 
         ball.current.y <= aiY.current + paddleH && 
@@ -118,7 +106,6 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
       ball.current.vy = impact * 8;
     }
 
-    // Game Over
     if (ball.current.x < -20 || ball.current.x > 820) {
       setGameOver(true);
     }
@@ -126,24 +113,19 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
 
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, 800, 500);
-    
-    // Background
     ctx.fillStyle = '#FDFCFE';
     ctx.fillRect(0, 0, 800, 500);
     
-    // Center line
     ctx.setLineDash([15, 15]);
     ctx.strokeStyle = '#2600CC22';
     ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(400, 0); ctx.lineTo(400, 500); ctx.stroke();
     ctx.setLineDash([]);
 
-    // Paddles
     ctx.fillStyle = '#2600CC';
     ctx.shadowBlur = 10;
     ctx.shadowColor = '#2600CC44';
     
-    // Draw rounded paddles
     const drawPaddle = (x: number, y: number) => {
       ctx.beginPath();
       ctx.roundRect(x, y, paddleW, paddleH, 6);
@@ -153,7 +135,6 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
     drawPaddle(20, playerY.current);
     drawPaddle(780 - paddleW, aiY.current);
     
-    // Ball
     ctx.fillStyle = '#FA1D64';
     ctx.shadowBlur = 15;
     ctx.shadowColor = '#FA1D6466';
@@ -195,12 +176,11 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
           <User className="h-4 w-4 text-muted-foreground" />
           <Switch id="two-player" checked={isTwoPlayer} onCheckedChange={(val) => { setIsTwoPlayer(val); initGame(); }} />
           <Users className="h-4 w-4 text-primary" />
-          <Label htmlFor="two-player" className="font-bold text-xs uppercase tracking-wider">2 Players</Label>
+          <Label htmlFor="two-player" className="font-bold text-xs uppercase tracking-wider">2 Joueurs</Label>
         </div>
       </div>
       
       <div 
-        ref={containerRef}
         className="relative w-full max-w-4xl"
         onTouchStart={handleTouch}
         onTouchMove={handleTouch}
@@ -215,8 +195,8 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
         
         {!gameOver && (
           <div className="absolute inset-0 pointer-events-none flex items-center justify-between px-12 opacity-10">
-            <div className="text-6xl font-black">DRAG</div>
-            {isTwoPlayer && <div className="text-6xl font-black">DRAG</div>}
+            <div className="text-6xl font-black">HOLD</div>
+            {isTwoPlayer && <div className="text-6xl font-black">HOLD</div>}
           </div>
         )}
       </div>

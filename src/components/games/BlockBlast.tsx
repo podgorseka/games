@@ -44,7 +44,6 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       const level = await generateBlockBlastLevel({ difficulty: 'medium' });
       const newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
       
-      // Ensure we map AI types to actual colors or use their type as a key
       level.initialBlocks.forEach(b => {
         if (b.row < GRID_SIZE && b.col < GRID_SIZE) {
           const color = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
@@ -54,8 +53,6 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       setGrid(newGrid);
       generateNewPieces();
     } catch (e) {
-      console.error(e);
-      // Fallback
       setGrid(Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill('')));
       generateNewPieces();
     }
@@ -92,7 +89,6 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       });
     });
 
-    // Check lines
     const rowsToClear: number[] = [];
     const colsToClear: number[] = [];
     for (let r = 0; r < GRID_SIZE; r++) if (newGrid[r].every(cell => cell !== '')) rowsToClear.push(r);
@@ -112,8 +108,6 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       generateNewPieces();
     } else {
       setPieces(updatedPieces);
-      
-      // Check game over only if pieces are left
       const canMoveAny = updatedPieces.some(p => {
         for (let r = 0; r < GRID_SIZE; r++) {
           for (let c = 0; c < GRID_SIZE; c++) {
@@ -122,12 +116,8 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
         }
         return false;
       });
-
-      if (!canMoveAny) {
-        onGameOver(score + (linesCleared * 100));
-      }
+      if (!canMoveAny) onGameOver(score + (linesCleared * 100));
     }
-
     return true;
   };
 
@@ -152,11 +142,19 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       const rect = gridEl.getBoundingClientRect();
       const cellSize = rect.width / GRID_SIZE;
       
-      // Calculate relative position to grid
-      const col = Math.floor((mousePos.x - rect.left) / cellSize);
-      const row = Math.floor((mousePos.y - rect.top) / cellSize);
+      const gridX = mousePos.x - rect.left;
+      const gridY = mousePos.y - rect.top;
       
-      placePiece(draggingPiece.id, row, col);
+      const hoveredCol = Math.floor(gridX / cellSize);
+      const hoveredRow = Math.floor(gridY / cellSize);
+
+      const shapeRows = draggingPiece.shape.length;
+      const shapeCols = draggingPiece.shape[0].length;
+      
+      const startRow = hoveredRow - Math.floor(shapeRows / 2);
+      const startCol = hoveredCol - Math.floor(shapeCols / 2);
+      
+      placePiece(draggingPiece.id, startRow, startCol);
     }
     setDraggingPiece(null);
   };
@@ -219,7 +217,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       </div>
       
       <p className="text-muted-foreground text-sm font-medium bg-muted/50 px-4 py-2 rounded-full">
-        Drag and drop blocks to clear lines!
+        Faites glisser les blocs pour remplir les lignes !
       </p>
 
       <Button variant="ghost" size="sm" onClick={fetchLevel} className="mt-2">
