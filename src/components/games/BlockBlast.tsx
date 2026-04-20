@@ -1,13 +1,13 @@
 
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, RotateCcw } from 'lucide-react';
 import { generateBlockBlastLevel } from '@/ai/flows/block-blast-level-generator';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const GRID_SIZE = 8;
+const GRID_SIZE = 9;
 const BLOCK_COLORS = ['#C41DFA', '#2600CC', '#FA1D64', '#1DFA9E', '#FAC11D'];
 
 export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
@@ -19,6 +19,13 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
   const [clearingLines, setClearingLines] = useState<{ rows: number[], cols: number[] }>({ rows: [], cols: [] });
   const [draggingPiece, setDraggingPiece] = useState<{ id: number, shape: number[][], color: string } | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  
+  const scoreRef = useRef(0);
+  const gridRef = useRef<string[][]>([]);
+
+  useEffect(() => {
+    gridRef.current = grid;
+  }, [grid]);
 
   const generateNewPieces = useCallback(() => {
     const availableShapes = [
@@ -29,7 +36,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       [[1, 1, 1]], 
       [[1], [1], [1]], 
       [[1, 1, 1], [0, 1, 0]],
-      [[1, 0], [1, 1]],
+      [[1, 1], [1, 0]],
       [[1, 1, 1], [1, 0, 0]],
       [[1, 1, 1], [0, 0, 1]]
     ];
@@ -43,6 +50,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
   }, []);
 
   const checkGameOver = useCallback((currentGrid: string[][], currentPieces: typeof pieces) => {
+    if (currentPieces.length === 0) return false;
     const canMoveAny = currentPieces.some(p => {
       for (let r = -2; r < GRID_SIZE; r++) {
         for (let c = -2; c < GRID_SIZE; c++) {
@@ -54,10 +62,26 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     return !canMoveAny;
   }, []);
 
+  const canPlace = (shape: number[][], startRow: number, startCol: number, currentGrid: string[][]) => {
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (shape[r][c]) {
+          const gridR = startRow + r;
+          const gridC = startCol + c;
+          if (gridR < 0 || gridR >= GRID_SIZE || gridC < 0 || gridC >= GRID_SIZE || currentGrid[gridR][gridC] !== '') {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  };
+
   const fetchLevel = useCallback(async () => {
     setLoading(true);
     setIsGameOver(false);
     setScore(0);
+    scoreRef.current = 0;
     try {
       const level = await generateBlockBlastLevel({ difficulty: 'medium' });
       const newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
@@ -84,21 +108,6 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     fetchLevel();
   }, [fetchLevel]);
 
-  const canPlace = (shape: number[][], startRow: number, startCol: number, currentGrid: string[][]) => {
-    for (let r = 0; r < shape.length; r++) {
-      for (let c = 0; c < shape[r].length; c++) {
-        if (shape[r][c]) {
-          const gridR = startRow + r;
-          const gridC = startCol + c;
-          if (gridR < 0 || gridR >= GRID_SIZE || gridC < 0 || gridC >= GRID_SIZE || currentGrid[gridR][gridC] !== '') {
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  };
-
   const findNearestValidPosition = (piece: any, targetRow: number, targetCol: number) => {
     let bestPos = null;
     let minDistance = Infinity;
@@ -106,7 +115,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
 
     for (let r = targetRow - searchRange; r <= targetRow + searchRange; r++) {
       for (let c = targetCol - searchRange; c <= targetCol + searchRange; c++) {
-        if (canPlace(piece.shape, r, c, grid)) {
+        if (canPlace(piece.shape, r, c, gridRef.current)) {
           const dist = Math.sqrt(Math.pow(r - targetRow, 2) + Math.pow(c - targetCol, 2));
           if (dist < minDistance) {
             minDistance = dist;
@@ -128,7 +137,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     const finalRow = bestPos.r;
     const finalCol = bestPos.c;
 
-    const newGrid = grid.map(row => [...row]);
+    const newGrid = gridRef.current.map(row => [...row]);
     let blocksPlaced = 0;
     piece.shape.forEach((row, r) => {
       row.forEach((val, c) => {
@@ -139,9 +148,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       });
     });
 
-    // Score pour chaque bloc posé
     let moveScore = blocksPlaced * 10;
-
     const rowsToClear: number[] = [];
     const colsToClear: number[] = [];
     for (let r = 0; r < GRID_SIZE; r++) if (newGrid[r].every(cell => cell !== '')) rowsToClear.push(r);
@@ -149,35 +156,26 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
 
     if (rowsToClear.length > 0 || colsToClear.length > 0) {
       setClearingLines({ rows: rowsToClear, cols: colsToClear });
-      
-      // Animation delay
       setTimeout(() => {
         rowsToClear.forEach(r => newGrid[r] = Array(GRID_SIZE).fill(''));
         colsToClear.forEach(c => newGrid.forEach(row => row[c] = ''));
 
-        const linesCleared = rowsToClear.length + colsToClear.length;
-        moveScore += linesCleared * 100;
-
-        // Check Perfect Clear (si la grille est vide)
+        moveScore += (rowsToClear.length + colsToClear.length) * 100;
         const isEmpty = newGrid.every(row => row.every(cell => cell === ''));
-        
-        setScore(s => {
-          const newTotal = s + moveScore;
-          return isEmpty ? newTotal * 2 : newTotal;
-        });
+        if (isEmpty) moveScore *= 2;
 
+        scoreRef.current += moveScore;
+        setScore(scoreRef.current);
         setGrid(newGrid);
         setClearingLines({ rows: [], cols: [] });
-
-        // Update pieces and check for game over after clearing
         finishTurn(pieceId, newGrid);
       }, 150);
     } else {
-      setScore(s => s + moveScore);
+      scoreRef.current += moveScore;
+      setScore(scoreRef.current);
       setGrid(newGrid);
       finishTurn(pieceId, newGrid);
     }
-
     return true;
   };
 
@@ -191,7 +189,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
 
     if (checkGameOver(currentGrid, updatedPieces)) {
       setIsGameOver(true);
-      onGameOver(score);
+      onGameOver(scoreRef.current);
     }
   };
 
@@ -216,18 +214,13 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     if (gridEl) {
       const rect = gridEl.getBoundingClientRect();
       const cellSize = rect.width / GRID_SIZE;
-      
       const gridX = mousePos.x - rect.left;
       const gridY = mousePos.y - rect.top;
       
       const hoveredCol = Math.floor(gridX / cellSize);
       const hoveredRow = Math.floor(gridY / cellSize);
-
-      const shapeRows = draggingPiece.shape.length;
-      const shapeCols = draggingPiece.shape[0].length;
-      
-      const startRow = hoveredRow - Math.floor(shapeRows / 2);
-      const startCol = hoveredCol - Math.floor(shapeCols / 2);
+      const startRow = hoveredRow - Math.floor(draggingPiece.shape.length / 2);
+      const startCol = hoveredCol - Math.floor(draggingPiece.shape[0].length / 2);
       
       placePiece(draggingPiece.id, startRow, startCol);
     }
@@ -254,8 +247,12 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       <div className="relative">
         <div 
           id="blast-grid"
-          className="grid grid-cols-8 gap-1 bg-muted/20 p-2 rounded-2xl border-4 border-primary shadow-2xl overflow-hidden"
-          style={{ width: 'min(90vw, 400px)', height: 'min(90vw, 400px)' }}
+          className="grid gap-1 bg-muted/30 p-2 rounded-2xl border-4 border-primary shadow-2xl"
+          style={{ 
+            width: 'min(90vw, 450px)', 
+            height: 'min(90vw, 450px)',
+            gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)` 
+          }}
         >
           {grid.map((row, r) => row.map((cell, c) => {
             const isClearing = clearingLines.rows.includes(r) || clearingLines.cols.includes(c);
@@ -266,7 +263,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
                   "aspect-square rounded-md transition-all border border-black/5",
                   isClearing ? "animate-pulse brightness-150 scale-95" : "duration-300"
                 )}
-                style={{ backgroundColor: cell || 'rgba(0,0,0,0.03)' }}
+                style={{ backgroundColor: cell || 'rgba(0,0,0,0.05)' }}
               />
             );
           }))}
@@ -322,4 +319,3 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     </div>
   );
 }
-

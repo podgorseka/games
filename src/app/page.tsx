@@ -21,6 +21,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getPlayerName, savePlayerName, saveScore } from '@/lib/storage';
+import { AuthButton } from '@/components/AuthButton';
+import { useUser } from '@/firebase';
 
 // Game components
 import Snake from '@/components/games/Snake';
@@ -41,18 +43,24 @@ const GAMES = [
 
 export default function Home() {
   const isMobile = useIsMobile();
+  const { user } = useUser();
   const [playerName, setPlayerName] = useState('');
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
 
   useEffect(() => {
-    setPlayerName(getPlayerName());
-  }, []);
+    if (user && user.displayName) {
+      setPlayerName(user.displayName);
+      savePlayerName(user.displayName);
+    } else {
+      setPlayerName(getPlayerName());
+    }
+  }, [user]);
 
   const handlePlayClick = (gameId: string) => {
     setSelectedGameId(gameId);
-    if (!playerName) {
+    if (!playerName && !user) {
       setShowNameDialog(true);
     } else {
       setActiveGameId(gameId);
@@ -72,7 +80,7 @@ export default function Home() {
     if (activeGameId) {
       const game = GAMES.find(g => g.id === activeGameId);
       if (game) {
-        saveScore(playerName, activeGameId, game.name, score);
+        saveScore(playerName || user?.displayName || 'Anonyme', activeGameId, game.name, score);
       }
     }
   };
@@ -101,15 +109,18 @@ export default function Home() {
             <h1 className="text-2xl font-headline font-bold tracking-tight text-primary">GAME ZONE</h1>
           </div>
           
-          <Button 
-            variant="outline" 
-            className="rounded-full border-primary text-primary hover:bg-primary hover:text-white transition-all font-bold"
-            asChild
-          >
-            <a href="https://adrienn.fr" target="_blank" rel="noopener noreferrer">
-              ADRIENN.FR <ArrowUpRight className="ml-1 h-4 w-4" />
-            </a>
-          </Button>
+          <div className="flex items-center gap-4">
+            <AuthButton />
+            <Button 
+              variant="outline" 
+              className="hidden sm:flex rounded-full border-primary text-primary hover:bg-primary hover:text-white transition-all font-bold"
+              asChild
+            >
+              <a href="https://adrienn.fr" target="_blank" rel="noopener noreferrer">
+                ADRIENN.FR <ArrowUpRight className="ml-1 h-4 w-4" />
+              </a>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -121,7 +132,7 @@ export default function Home() {
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Experience 6 addictive mini-games designed for both desktop and mobile. 
-            No installs, just pure fun.
+            Connect to save your progress!
           </p>
         </section>
 
@@ -150,7 +161,7 @@ export default function Home() {
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left">
             <h3 className="text-xl font-headline font-bold mb-2">GAME ZONE</h3>
-            <p className="text-sm text-muted-foreground">© 2024 Built with precision and style. All scores saved locally.</p>
+            <p className="text-sm text-muted-foreground">© 2024 Built with precision and style.</p>
           </div>
           <div className="flex gap-4">
             <Button variant="ghost" size="sm" asChild>
