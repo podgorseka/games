@@ -16,7 +16,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const CANVAS_HEIGHT = 700;
   const HORIZON = CANVAS_HEIGHT * 0.35;
   const FOV = 130;
-  const TRAIN_HEIGHT = 220; // Massive trains
+  const TRAIN_HEIGHT = 220;
 
   const playerLane = useRef(1);
   const currentX = useRef(0);
@@ -26,7 +26,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const jumpVelocity = useRef(0);
   const obstacles = useRef<{ lane: number, z: number, length: number, type: 'train' | 'barrier' | 'ramp', color: string }[]>([]);
   const coinsList = useRef<{ lane: number, z: number }[]>([]);
-  const gameSpeed = useRef(4.2); // Slower for realism
+  const gameSpeed = useRef(4.2);
   const frameCount = useRef(0);
   const tunnelOffset = useRef(0);
 
@@ -71,11 +71,9 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     frameCount.current++;
     setScore(s => s + 1);
 
-    // Smooth lane transitions (Interpolation)
     const targetX = (playerLane.current - 1) * 145;
     currentX.current += (targetX - currentX.current) * 0.2;
 
-    // Physics
     playerYOffset.current += jumpVelocity.current;
     jumpVelocity.current -= 0.9;
 
@@ -97,7 +95,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
     tunnelOffset.current = (tunnelOffset.current + gameSpeed.current * 10) % 500;
 
-    // Spawning (Procedural)
     if (frameCount.current % 130 === 0) {
       const lane = Math.floor(Math.random() * 3);
       const isClimbable = Math.random() > 0.65;
@@ -116,7 +113,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
     gameSpeed.current += 0.0004;
 
-    // Collisions
     obstacles.current.forEach(obj => {
       obj.z -= gameSpeed.current * 10;
       if (obj.lane === playerLane.current && obj.z < 100 && (obj.z + obj.length) > 20) {
@@ -147,32 +143,26 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const drawCharacter = (ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) => {
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(scale * 1.8, scale * 1.8); // Smaller character for visibility
+    ctx.scale(scale * 1.8, scale * 1.8);
 
     const bodyH = isSliding.current ? 40 : 80;
     
-    // Smooth Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath(); ctx.ellipse(0, 5, 20, 6, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Hoodie & Backpack Stylized
     ctx.fillStyle = '#f8fafc';
     ctx.beginPath(); ctx.roundRect(-16, -bodyH - 20, 32, bodyH, 10); ctx.fill();
     
-    // Pants
     ctx.fillStyle = '#1e40af';
     ctx.fillRect(-13, -20, 9, 20);
     ctx.fillRect(4, -20, 9, 20);
 
-    // Backpack
     ctx.fillStyle = '#0f172a';
     ctx.beginPath(); ctx.roundRect(-12, -bodyH - 5, 24, 40, 5); ctx.fill();
 
-    // Head
     ctx.fillStyle = '#f3f4f6';
     ctx.beginPath(); ctx.arc(0, -bodyH - 30, 16, 0, Math.PI * 2); ctx.fill();
     
-    // Red Cap
     ctx.fillStyle = '#dc2626';
     ctx.beginPath(); ctx.arc(0, -bodyH - 40, 10, 0, Math.PI, true); ctx.fill();
 
@@ -182,7 +172,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Realistic Tunnel Background
     const bg = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
     bg.addColorStop(0, '#020617');
     bg.addColorStop(0.35, '#1e293b');
@@ -190,20 +179,18 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Rails & Wooden Ties
     for (let i = 0; i < 35; i++) {
       const z = (i * 200 - tunnelOffset.current + 7000) % 7000;
       const s = FOV / (FOV + z);
       const y = HORIZON + (CANVAS_HEIGHT - HORIZON) * s;
       const tieW = 450 * s;
       
-      ctx.fillStyle = '#27272a'; // Concrete/Wood look
+      ctx.fillStyle = '#27272a';
       ctx.fillRect(CANVAS_WIDTH/2 - tieW/2, y, tieW, 10 * s);
-      ctx.fillStyle = 'rgba(0,0,0,0.4)'; // Crevice shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.fillRect(CANVAS_WIDTH/2 - tieW/2, y + 8 * s, tieW, 2 * s);
     }
 
-    // Steel Perspective Rails
     ctx.strokeStyle = '#475569';
     ctx.lineWidth = 4;
     [-1.25, -0.45, 0.45, 1.25].forEach(rx => {
@@ -232,21 +219,18 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
         const wS = 190 * scaleS; const wE = 190 * scaleE;
         const hS = TRAIN_HEIGHT * scaleS; const hE = TRAIN_HEIGHT * scaleE;
 
-        // Perspective 3D Body
         ctx.fillStyle = obj.color;
         ctx.beginPath();
         ctx.moveTo(xS - wS/2, yS - hS); ctx.lineTo(xE - wE/2, yE - hE);
         ctx.lineTo(xE + wE/2, yE - hE); ctx.lineTo(xS + wS/2, yS - hS);
         ctx.fill();
         
-        // Massive Front Face
         if (obj.z > 35) {
            ctx.fillStyle = '#1e293b';
            ctx.beginPath();
            ctx.roundRect(xS - wS/2, yS - hS, wS, hS, 10 * scaleS);
            ctx.fill();
            
-           // Windows Glow
            ctx.fillStyle = 'rgba(255,255,255,0.1)';
            ctx.fillRect(xS - wS/2.5, yS - hS * 0.8, wS/1.5, hS * 0.4);
         }
