@@ -13,8 +13,7 @@ import {
   X,
   Keyboard,
   User as UserIcon,
-  Car,
-  Zap
+  Car
 } from 'lucide-react';
 import GameCard from '@/components/GameCard';
 import Leaderboard from '@/components/Leaderboard';
@@ -33,18 +32,16 @@ import FlappyBird from '@/components/games/FlappyBird';
 import BlockBlast from '@/components/games/BlockBlast';
 import PlatformerCube from '@/components/games/PlatformerCube';
 import Pong from '@/components/games/Pong';
-import MrRacer from '@/components/games/MrRacer';
-import SubwaySurfer from '@/components/games/SubwaySurfer';
+import ApexRacer from '@/components/games/MrRacer';
 
 const GAMES = [
-  { id: 'block-blast', name: 'Block Blast', description: 'Place blocks and explode full lines', icon: <Box /> },
-  { id: 'subway-surfer', name: 'Subway Surfer', description: 'Run, jump and slide through obstacles', icon: <Zap /> },
-  { id: 'mr-racer', name: 'Mr Racer', description: 'Dodge traffic at high speed on the highway', icon: <Car /> },
-  { id: 'platformer-cube', name: 'Platformer Cube', description: 'Jump over obstacles with your cube buddy', icon: <MoveRight /> },
-  { id: 'snake', name: 'Snake', description: 'Classic snake game with smooth controls', icon: <CircleDot /> },
-  { id: 'tetris', name: 'Tetris', description: 'Classic brick breaking strategy', icon: <Grid3X3 /> },
-  { id: 'flappy-bird', name: 'Flappy Bird', description: 'Tap to fly between moving pillars', icon: <Bird /> },
-  { id: 'pong', name: 'Pong', description: 'Solo pong against an AI paddle', icon: <Gamepad2 /> },
+  { id: 'apex-racer', name: 'Apex Racer', description: 'Course de haute précision sur autoroute nocturne', icon: <Car /> },
+  { id: 'block-blast', name: 'Block Blast', description: 'Placez des blocs et faites exploser les lignes', icon: <Box /> },
+  { id: 'platformer-cube', name: 'Platformer Cube', description: 'Sautez par-dessus les obstacles avec style', icon: <MoveRight /> },
+  { id: 'snake', name: 'Snake', description: 'Le serpent classique avec des contrôles fluides', icon: <CircleDot /> },
+  { id: 'tetris', name: 'Tetris', description: 'Stratégie de briques classique', icon: <Grid3X3 /> },
+  { id: 'flappy-bird', name: 'Flappy Bird', description: 'Volez entre les piliers mouvants', icon: <Bird /> },
+  { id: 'pong', name: 'Pong', description: 'Pong en solo contre une IA', icon: <Gamepad2 /> },
 ];
 
 export default function Home() {
@@ -95,15 +92,13 @@ export default function Home() {
       case 'block-blast': return <BlockBlast isMobile={isMobile} onGameOver={handleGameOver} />;
       case 'platformer-cube': return <PlatformerCube isMobile={isMobile} onGameOver={handleGameOver} />;
       case 'pong': return <Pong isMobile={isMobile} onGameOver={handleGameOver} />;
-      case 'mr-racer': return <MrRacer isMobile={isMobile} onGameOver={handleGameOver} />;
-      case 'subway-surfer': return <SubwaySurfer isMobile={isMobile} onGameOver={handleGameOver} />;
+      case 'apex-racer': return <ApexRacer isMobile={isMobile} onGameOver={handleGameOver} />;
       default: return null;
     }
   };
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -139,32 +134,21 @@ export default function Home() {
                  Set Name
                </Button>
             )}
-            <Button 
-              variant="outline" 
-              className="hidden sm:flex rounded-full border-primary text-primary hover:bg-primary hover:text-white transition-all font-bold h-9"
-              asChild
-            >
-              <a href="https://adrienn.fr" target="_blank" rel="noopener noreferrer">
-                ADRIENN.FR <ArrowUpRight className="ml-1 h-4 w-4" />
-              </a>
-            </Button>
           </div>
         </div>
       </header>
 
       <main className="flex-grow container mx-auto px-4 py-12">
-        {/* Hero Section */}
         <section className="text-center mb-16 space-y-4">
           <h2 className="text-5xl md:text-7xl font-headline font-bold text-foreground tracking-tighter">
             YOUR ULTIMATE <span className="text-primary italic">PLAYGROUND</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Experience 8 addictive mini-games designed for both desktop and mobile. 
-            All scores are saved locally on your device!
+            Découvrez nos mini-jeux addictifs conçus pour desktop et mobile. 
+            Tous vos scores sont sauvegardés localement !
           </p>
         </section>
 
-        {/* Game Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {GAMES.map((game) => (
             <GameCard 
@@ -178,42 +162,33 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Leaderboard */}
         <section className="mt-20">
           <Leaderboard />
         </section>
       </main>
 
-      {/* Footer */}
       <footer className="bg-muted py-12 border-t">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left">
             <h3 className="text-xl font-headline font-bold mb-2">GAME ZONE</h3>
-            <p className="text-sm text-muted-foreground">© 2024 Built with precision and style. 100% Offline.</p>
+            <p className="text-sm text-muted-foreground">© 2024 Design & Performance. 100% Offline.</p>
           </div>
           <div className="flex gap-4">
-            <Button variant="ghost" size="sm" asChild>
-              <a href="https://adrienn.fr">Contact</a>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <a href="https://adrienn.fr">Support</a>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <a href="https://adrienn.fr">Privacy</a>
-            </Button>
+            <Button variant="ghost" size="sm">Contact</Button>
+            <Button variant="ghost" size="sm">Support</Button>
+            <Button variant="ghost" size="sm">Privacy</Button>
           </div>
         </div>
       </footer>
 
-      {/* Name Dialog */}
       <Dialog open={showNameDialog} onOpenChange={setShowNameDialog}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-headline">What's your name?</DialogTitle>
+            <DialogTitle className="text-2xl font-headline">Quel est votre nom ?</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleStartGame} className="space-y-6 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Enter your pilot name</Label>
+              <Label htmlFor="name">Entrez votre nom de pilote</Label>
               <Input 
                 id="name" 
                 placeholder="Game Master..." 
@@ -223,12 +198,11 @@ export default function Home() {
                 autoFocus
               />
             </div>
-            <Button type="submit" className="w-full h-12 rounded-xl text-lg font-bold">Save & Play</Button>
+            <Button type="submit" className="w-full h-12 rounded-xl text-lg font-bold">Sauvegarder & Jouer</Button>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Fullscreen Game Modal */}
       {activeGameId && (
         <div className="fixed inset-0 z-[100] bg-background flex flex-col">
           <header className="h-16 px-4 flex items-center justify-between border-b bg-card">
@@ -241,7 +215,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               {!isMobile && (
                  <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground mr-4">
-                   <Keyboard className="h-4 w-4" /> Use arrow keys / space
+                   <Keyboard className="h-4 w-4" /> Utilisez les flèches / espace
                  </div>
               )}
               <Button 
@@ -254,7 +228,7 @@ export default function Home() {
               </Button>
             </div>
           </header>
-          <div className="flex-grow relative bg-[#FDFCFE]">
+          <div className="flex-grow relative bg-[#020617]">
             {renderGame()}
           </div>
         </div>

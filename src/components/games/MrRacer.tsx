@@ -10,7 +10,7 @@ const CANVAS_HEIGHT = 450;
 const HORIZON = CANVAS_HEIGHT * 0.45;
 const FOV = 100;
 
-export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
+export default function ApexRacer({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
@@ -45,11 +45,11 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   }, []);
 
   const spawnTraffic = useCallback(() => {
-    if (traffic.current.length > 3) return;
+    if (traffic.current.length > 4) return;
     const lanes = [-160, -60, 60, 160];
     const laneX = lanes[Math.floor(Math.random() * lanes.length)];
     
-    if (traffic.current.some(t => Math.abs(t.z - 6000) < 1500 && t.x === laneX)) return;
+    if (traffic.current.some(t => Math.abs(t.z - 6000) < 1200 && t.x === laneX)) return;
 
     const colors = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#4b5563', '#ffffff', '#000000'];
     traffic.current.push({
@@ -91,15 +91,15 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     setDistance(d => d + distInc);
     roadOffset.current = (roadOffset.current + playerSpeed.current * 300) % 1000;
 
-    if (Math.random() < 0.015) spawnTraffic();
+    if (Math.random() < 0.02) spawnTraffic();
     traffic.current.forEach(car => {
       const relSpeed = (playerSpeed.current - car.speed) * 200;
       car.z -= relSpeed;
 
       const carWidth = car.type === 'truck' ? 130 : 100;
-      if (car.z > -15 && car.z < 115) {
+      if (car.z > -10 && car.z < 110) {
         const dx = Math.abs(car.x - playerX.current);
-        if (dx < carWidth - 30) {
+        if (dx < carWidth - 40) {
           setGameOver(true);
         }
       }
@@ -140,16 +140,19 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     ctx.roundRect(screenX - vW / 2, roofY, vW, vH, 10 * scale);
     ctx.fill();
 
+    // Volume facial
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.fillRect(screenX - vW/2, roofY, vW * 0.2, vH);
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.fillRect(screenX + vW/2 - vW*0.2, roofY, vW * 0.2, vH);
 
+    // Vitres
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
     ctx.roundRect(screenX - vW * 0.38, roofY + vH * 0.1, vW * 0.76, vH * 0.42, 4 * scale);
     ctx.fill();
 
+    // Feux arrière avec effet Bloom
     ctx.shadowBlur = 25 * scale;
     ctx.shadowColor = '#ef4444';
     ctx.fillStyle = isPlayer ? '#f87171' : '#991b1b';

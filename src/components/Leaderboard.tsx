@@ -2,16 +2,15 @@
 "use client"
 
 import React from 'react';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { Table, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Trophy, Medal, User, Gamepad2 } from 'lucide-react';
 import { getScores, type ScoreEntry } from '@/lib/storage';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
-const GAME_IDS = ['block-blast', 'subway-surfer', 'mr-racer', 'platformer-cube', 'snake', 'tetris', 'flappy-bird', 'pong'];
+const GAME_IDS = ['apex-racer', 'block-blast', 'platformer-cube', 'snake', 'tetris', 'flappy-bird', 'pong'];
 const GAME_NAMES: Record<string, string> = {
+  'apex-racer': 'Apex Racer',
   'block-blast': 'Block Blast',
-  'subway-surfer': 'Subway Surfer',
-  'mr-racer': 'Mr Racer',
   'platformer-cube': 'Platformer Cube',
   'snake': 'Snake',
   'tetris': 'Tetris',
@@ -27,7 +26,6 @@ export default function Leaderboard() {
     const grouped: Record<string, ScoreEntry[]> = {};
     
     GAME_IDS.forEach(id => {
-      // On prend seulement les 3 meilleurs scores par jeu
       grouped[id] = allScores
         .filter(s => s.gameId === id)
         .sort((a, b) => b.score - a.score)

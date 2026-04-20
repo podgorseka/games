@@ -1,22 +1,16 @@
 {
   "placeholderImages": [
     {
+      "id": "apex-racer",
+      "description": "Apex Racer Game Image",
+      "imageUrl": "https://picsum.photos/seed/303/600/400",
+      "imageHint": "cyberpunk car rear"
+    },
+    {
       "id": "block-blast",
       "description": "Block Blast Game Image",
       "imageUrl": "https://picsum.photos/seed/101/600/400",
       "imageHint": "colorful blocks neon"
-    },
-    {
-      "id": "subway-surfer",
-      "description": "Subway Surfer Game Image",
-      "imageUrl": "https://picsum.photos/seed/202/600/400",
-      "imageHint": "neon tunnel perspective"
-    },
-    {
-      "id": "mr-racer",
-      "description": "Mr Racer Game Image",
-      "imageUrl": "https://picsum.photos/seed/303/600/400",
-      "imageHint": "cyberpunk car rear"
     },
     {
       "id": "platformer-cube",
