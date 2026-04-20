@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -13,9 +14,9 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
   const CANVAS_WIDTH = 400;
   const CANVAS_HEIGHT = 700;
-  const HORIZON = CANVAS_HEIGHT * 0.35; // Horizon abaissé pour plus de vue
+  const HORIZON = CANVAS_HEIGHT * 0.35;
   const FOV = 130;
-  const TRAIN_HEIGHT = 280; // Trains encore plus hauts
+  const TRAIN_HEIGHT = 280;
 
   const playerLane = useRef(1);
   const currentX = useRef(0);
@@ -76,6 +77,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     playerYOffset.current += jumpVelocity.current;
     jumpVelocity.current -= 1.0;
 
+    // Train floor check
     let onTrain = false;
     obstacles.current.forEach(obs => {
       if (obs.type === 'train' || obs.type === 'ramp') {
@@ -96,6 +98,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
     tunnelOffset.current = (tunnelOffset.current + gameSpeed.current * 12) % 400;
 
+    // Spawning logic
     if (frameCount.current % 120 === 0) {
       const lane = Math.floor(Math.random() * 3);
       const isClimbable = Math.random() > 0.6;
@@ -114,6 +117,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
     gameSpeed.current += 0.0006;
 
+    // Collisions and Movement
     obstacles.current.forEach(obj => {
       obj.z -= gameSpeed.current * 9;
       if (obj.lane === playerLane.current && obj.z < 110 && (obj.z + obj.length) > 35) {
@@ -144,7 +148,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const drawCharacter = (ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) => {
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(scale * 2.2, scale * 2.2); // Taille réduite pour visibilité
+    ctx.scale(scale * 2.2, scale * 2.2);
 
     const bodyH = isSliding.current ? 45 : 85;
     
@@ -152,24 +156,20 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.beginPath(); ctx.ellipse(0, 5, 25, 8, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Hoodie & Body
+    // Character Styling (Backpack + Hoodie)
     ctx.fillStyle = '#f3f4f6';
     ctx.beginPath(); ctx.roundRect(-18, -bodyH - 20, 36, bodyH, 12); ctx.fill();
     
-    // Pants
     ctx.fillStyle = '#3b82f6';
     ctx.fillRect(-14, -25, 10, 25);
     ctx.fillRect(4, -25, 10, 25);
 
-    // Backpack
     ctx.fillStyle = '#1e3a8a';
     ctx.beginPath(); ctx.roundRect(-15, -bodyH - 5, 30, 45, 6); ctx.fill();
 
-    // Head
     ctx.fillStyle = '#e5e7eb';
     ctx.beginPath(); ctx.arc(0, -bodyH - 35, 18, 0, Math.PI * 2); ctx.fill();
     
-    // Cap
     ctx.fillStyle = '#ef4444';
     ctx.beginPath(); ctx.arc(0, -bodyH - 45, 11, 0, Math.PI, true); ctx.fill();
 
@@ -179,7 +179,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Tunnel Backdrop
+    // Tunnel
     const bg = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
     bg.addColorStop(0, '#020617');
     bg.addColorStop(0.35, '#1e293b');
@@ -187,7 +187,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Rail System
+    // Rails & Traverses
     for (let i = 0; i < 30; i++) {
       const z = (i * 200 - tunnelOffset.current + 6000) % 6000;
       const s = FOV / (FOV + z);
@@ -227,35 +227,19 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
         const wS = 180 * scaleS; const wE = 180 * scaleE;
         const hS = TRAIN_HEIGHT * scaleS; const hE = TRAIN_HEIGHT * scaleE;
 
-        // Sides and Roof (3D Volume)
+        // Perspective volume rendering
         ctx.fillStyle = obj.color;
         ctx.beginPath();
         ctx.moveTo(xS - wS/2, yS - hS); ctx.lineTo(xE - wE/2, yE - hE);
         ctx.lineTo(xE + wE/2, yE - hE); ctx.lineTo(xS + wS/2, yS - hS);
         ctx.fill();
         
-        // Front Face (Massive)
+        // Massive Front
         if (obj.z > 40) {
            ctx.fillStyle = '#1e293b';
            ctx.fillRect(xS - wS/2, yS - hS, wS, hS);
            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
            ctx.strokeRect(xS - wS/2, yS - hS, wS, hS);
-           
-           // Windows/Lights
-           ctx.fillStyle = 'rgba(255,255,255,0.05)';
-           ctx.fillRect(xS - wS/2.2, yS - hS * 0.85, wS * 0.9, hS * 0.4);
-        }
-
-        // Texture Ribs
-        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-        for(let r=0; r<10; r++) {
-           const rZ = obj.z + (obj.length / 10) * r;
-           const rs = FOV / (FOV + rZ);
-           const rx = CANVAS_WIDTH/2 + laneX * rs * 5.8;
-           const ry = HORIZON + (CANVAS_HEIGHT - HORIZON) * rs;
-           const rw = 180 * rs;
-           const rh = TRAIN_HEIGHT * rs;
-           ctx.beginPath(); ctx.moveTo(rx - rw/2, ry); ctx.lineTo(rx - rw/2, ry - rh); ctx.stroke();
         }
 
         if (obj.type === 'ramp') {
@@ -268,8 +252,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
         const bW = 160 * scaleS; const bH = 100 * scaleS;
         ctx.fillStyle = '#ef4444';
         ctx.fillRect(xS - bW/2, yS - bH, bW, bH);
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(xS - bW/2, yS - bH * 0.7, bW, 15 * scaleS);
       } else if (obj.type === 'coin') {
         const cs = 60 * scaleS;
         ctx.fillStyle = '#facc15';
@@ -341,25 +323,9 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
       <canvas ref={canvasRef} width={400} height={700} className="w-full h-auto max-h-[98vh] shadow-2xl" />
       
-      {!gameOver && (
-        <div className="absolute bottom-12 text-white/30 font-bold uppercase tracking-[0.4em] text-xs animate-pulse">
-           Swipe to Surf
-        </div>
-      )}
-
       {gameOver && (
         <div className="absolute inset-0 bg-black/98 flex flex-col items-center justify-center p-12 text-center z-50 backdrop-blur-3xl">
           <h2 className="text-8xl font-headline font-bold text-white tracking-tighter italic mb-12 drop-shadow-2xl">CAUGHT!</h2>
-          <div className="flex gap-8 mb-20">
-             <div className="bg-white/5 px-8 py-6 rounded-2xl border border-white/10">
-                <p className="text-4xl font-bold">{Math.floor(score / 10)}M</p>
-                <p className="text-[10px] uppercase text-white/30 tracking-widest">Distance</p>
-             </div>
-             <div className="bg-white/5 px-8 py-6 rounded-2xl border border-white/10">
-                <p className="text-4xl font-bold text-yellow-500">{coins}</p>
-                <p className="text-[10px] uppercase text-white/30 tracking-widest">Loot</p>
-             </div>
-          </div>
           <Button onClick={initGame} size="lg" className="rounded-2xl px-20 py-14 text-3xl font-bold bg-primary hover:scale-105 transition-transform shadow-2xl border-b-8 border-primary/50">
             RETRY
           </Button>

@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -52,9 +53,11 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const update = useCallback(() => {
     if (gameOver) return;
 
+    // Movement logic
     if (keys.current['LeftPress']) targetX.current -= 14;
     if (keys.current['RightPress']) targetX.current += 14;
 
+    // Pedals logic
     if (keys.current['Accel']) targetSpeed.current = Math.min(0.3, targetSpeed.current + 0.004);
     else if (keys.current['Brake']) targetSpeed.current = Math.max(0.06, targetSpeed.current - 0.007);
     else targetSpeed.current = Math.max(0.12, targetSpeed.current - 0.001);
@@ -74,6 +77,7 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
       const relativeSpeed = (playerSpeed.current - e.speed) * 200;
       e.z -= relativeSpeed;
 
+      // Real volume collision
       const carW = e.type === 'truck' ? 80 : 60;
       if (e.z > -10 && e.z < 60) {
         const dist = Math.abs(e.x - playerX.current);
@@ -94,7 +98,7 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     if (screenY < HORIZON || scale < 0.01) return;
 
     const carW = (type === 'truck' ? 200 : 160) * scale;
-    const carH = (type === 'truck' ? 200 : 150) * scale; // Hauteur massive
+    const carH = (type === 'truck' ? 200 : 150) * scale; // Massive height
     const depth = (type === 'truck' ? 150 : 100) * scale;
 
     ctx.save();
@@ -136,16 +140,18 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    // Sky
     const sky = ctx.createLinearGradient(0, 0, 0, HORIZON);
     sky.addColorStop(0, '#020617');
     sky.addColorStop(1, '#1e293b');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
 
+    // Road Base
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
 
-    // Dynamic Road Lines
+    // Dynamic Road Lines (Neon Glow)
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     for (let i = 0; i < 20; i++) {
       const z = i * 200 - roadOffset.current;
@@ -161,9 +167,11 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
       });
     }
 
+    // Sort by depth
     const all = [...enemies.current].sort((a, b) => b.z - a.z);
     all.forEach(e => drawCar(ctx, e.x, e.z, e.color, false, e.type));
     
+    // Player
     drawCar(ctx, playerX.current, 50, '#C41DFA', true);
 
   }, [score, roadOffset.current, HORIZON]);
@@ -196,7 +204,7 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center bg-[#020617] overflow-hidden touch-none select-none">
-      {/* Invisible Touch zones for Steering */}
+      {/* Steering Controls (Invisible overlay) */}
       <div className="absolute inset-0 z-10 flex">
           <div 
             className="flex-1" 
@@ -212,6 +220,7 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
           />
       </div>
 
+      {/* Top UI */}
       <div className="absolute top-12 left-12 flex flex-col items-start z-20 pointer-events-none">
         <div className="text-8xl font-headline font-bold text-white tracking-tighter italic drop-shadow-2xl">
           {Math.floor(score / 10)} <span className="text-2xl text-primary">KM</span>
@@ -220,6 +229,7 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
       <canvas ref={canvasRef} width={400} height={650} className="w-full h-auto max-h-[95vh]" />
 
+      {/* Pedal Controls */}
       {!gameOver && (
           <div className="absolute bottom-12 inset-x-10 flex justify-between z-30 pointer-events-none">
               <div 
@@ -242,6 +252,7 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
           </div>
       )}
 
+      {/* Game Over Screen */}
       {gameOver && (
         <div className="absolute inset-0 bg-black/98 flex flex-col items-center justify-center p-12 text-center z-50 backdrop-blur-3xl">
           <h2 className="text-9xl font-headline font-bold text-destructive mb-12 tracking-tighter italic">CRASH</h2>
