@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, RotateCcw } from 'lucide-react';
-import { generateBlockBlastLevel } from '@/ai/flows/block-blast-level-generator';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { generateBlockBlastLevel } from '@/ai/flows/block-blast-level-generator';
 
 const GRID_SIZE = 9;
 const BLOCK_COLORS = ['#C41DFA', '#2600CC', '#FA1D64', '#1DFA9E', '#FAC11D'];
@@ -26,6 +26,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     gridRef.current = grid;
   }, [grid]);
 
+  // Générateur de pièces local (Hors-ligne)
   const generateNewPieces = useCallback(() => {
     const availableShapes = [
       [[1]], 
@@ -37,7 +38,8 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       [[1, 1, 1], [0, 1, 0]],
       [[1, 1], [1, 0]],
       [[1, 1, 1], [1, 0, 0]],
-      [[1, 1, 1], [0, 0, 1]]
+      [[1, 1, 1], [0, 0, 1]],
+      [[1, 1, 1], [1, 1, 1], [1, 1, 1]] // Gros carré rare
     ];
     const newPieces = Array.from({ length: 3 }).map((_, i) => ({
       id: Math.random(),
@@ -46,19 +48,6 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     }));
     setPieces(newPieces);
     return newPieces;
-  }, []);
-
-  const checkGameOver = useCallback((currentGrid: string[][], currentPieces: typeof pieces) => {
-    if (currentPieces.length === 0) return false;
-    const canMoveAny = currentPieces.some(p => {
-      for (let r = -2; r < GRID_SIZE; r++) {
-        for (let c = -2; c < GRID_SIZE; c++) {
-          if (canPlace(p.shape, r, c, currentGrid)) return true;
-        }
-      }
-      return false;
-    });
-    return !canMoveAny;
   }, []);
 
   const canPlace = (shape: number[][], startRow: number, startCol: number, currentGrid: string[][]) => {
@@ -76,46 +65,30 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     return true;
   };
 
-  const fetchLevel = useCallback(async () => {
-    setLoading(true);
-    setIsGameOver(false);
-    setScore(0);
-    scoreRef.current = 0;
-    try {
-      const level = await generateBlockBlastLevel({ difficulty: 'medium' });
-      const newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
-      
-      level.initialBlocks.forEach(b => {
-        if (b.row < GRID_SIZE && b.col < GRID_SIZE) {
-          const color = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
-          newGrid[b.row][b.col] = color;
+  const checkGameOver = useCallback((currentGrid: string[][], currentPieces: typeof pieces) => {
+    if (currentPieces.length === 0) return false;
+    const canMoveAny = currentPieces.some(p => {
+      for (let r = -2; r < GRID_SIZE; r++) {
+        for (let c = -2; c < GRID_SIZE; c++) {
+          if (canPlace(p.shape, r, c, currentGrid)) return true;
         }
-      });
-      setGrid(newGrid);
-      const newPieces = generateNewPieces();
-      if (checkGameOver(newGrid, newPieces)) setIsGameOver(true);
-    } catch (e) {
-      const newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
-      setGrid(newGrid);
-      const newPieces = generateNewPieces();
-      if (checkGameOver(newGrid, newPieces)) setIsGameOver(true);
-    }
-    setLoading(false);
-  }, [generateNewPieces, checkGameOver]);
+      }
+      return false;
+    });
+    return !canMoveAny;
+  }, []);
 
-  useEffect(() => {
-    fetchLevel();
-  }, [fetchLevel]);
-
+  // Magnétisme Intelligent : trouve la position valide la plus proche
   const findNearestValidPosition = (piece: any, targetRow: number, targetCol: number) => {
     let bestPos = null;
     let minDistance = Infinity;
-    const searchRange = 2; // Rayon de recherche pour le snapping intelligent
+    const searchRange = 2; // Rayon de recherche généreux
 
     for (let r = targetRow - searchRange; r <= targetRow + searchRange; r++) {
       for (let c = targetCol - searchRange; c <= targetCol + searchRange; c++) {
         if (canPlace(piece.shape, r, c, gridRef.current)) {
-          const dist = Math.sqrt(Math.pow(r - targetRow, 2) + Math.pow(c - targetCol, 2));
+          // On calcule la distance au carré pour la performance
+          const dist = Math.pow(r - targetRow, 2) + Math.pow(c - targetCol, 2);
           if (dist < minDistance) {
             minDistance = dist;
             bestPos = { r, c };
@@ -125,6 +98,37 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     }
     return bestPos;
   };
+
+  const startNewGame = useCallback(async () => {
+    setLoading(true);
+    setIsGameOver(false);
+    setScore(0);
+    scoreRef.current = 0;
+    
+    const newGrid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
+    
+    try {
+      // Tentative de récupération via Genkit (IA)
+      const level = await generateBlockBlastLevel({ difficulty: 'medium' });
+      level.initialBlocks.forEach(b => {
+        if (b.row < GRID_SIZE && b.col < GRID_SIZE) {
+          const color = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
+          newGrid[b.row][b.col] = color;
+        }
+      });
+    } catch (e) {
+      // Fallback local en cas d'absence de connexion ou d'erreur
+      console.log("Mode hors-ligne activé pour Block Blast");
+    }
+
+    setGrid(newGrid);
+    generateNewPieces();
+    setLoading(false);
+  }, [generateNewPieces]);
+
+  useEffect(() => {
+    startNewGame();
+  }, [startNewGame]);
 
   const placePiece = (pieceId: number, startRow: number, startCol: number) => {
     const piece = pieces.find(p => p.id === pieceId);
@@ -147,7 +151,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       });
     });
 
-    // Score de base pour le placement
+    // Score pour chaque bloc posé
     let moveScore = blocksPlaced * 10;
     
     const rowsToClear: number[] = [];
@@ -158,14 +162,14 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     if (rowsToClear.length > 0 || colsToClear.length > 0) {
       setClearingLines({ rows: rowsToClear, cols: colsToClear });
       
-      // Attente de 0.1s avant de supprimer les lignes
+      // Animation stylée (attente de 0.1s)
       setTimeout(() => {
         rowsToClear.forEach(r => newGrid[r] = Array(GRID_SIZE).fill(''));
         colsToClear.forEach(c => newGrid.forEach(row => row[c] = ''));
 
         moveScore += (rowsToClear.length + colsToClear.length) * 100;
         
-        // Bonus Perfect Clear: x2 si la grille est vide
+        // Bonus "Perfect Clear" : x2 si la grille est vide après le coup
         const isEmpty = newGrid.every(row => row.every(cell => cell === ''));
         if (isEmpty) moveScore *= 2;
 
@@ -185,14 +189,16 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
   };
 
   const finishTurn = (usedPieceId: number, currentGrid: string[][]) => {
-    let updatedPieces = pieces.filter(p => p.id !== usedPieceId);
+    const updatedPieces = pieces.filter(p => p.id !== usedPieceId);
+    let finalPieces = updatedPieces;
+
     if (updatedPieces.length === 0) {
-      updatedPieces = generateNewPieces();
+      finalPieces = generateNewPieces();
     } else {
       setPieces(updatedPieces);
     }
 
-    if (checkGameOver(currentGrid, updatedPieces)) {
+    if (checkGameOver(currentGrid, finalPieces)) {
       setIsGameOver(true);
       onGameOver(scoreRef.current);
     }
@@ -225,7 +231,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       const hoveredCol = Math.floor(gridX / cellSize);
       const hoveredRow = Math.floor(gridY / cellSize);
       
-      // Placement basé sur le centre de la pièce pour que ça suive bien le doigt
+      // On centre la pièce sous le curseur
       const startRow = hoveredRow - Math.floor(draggingPiece.shape.length / 2);
       const startCol = hoveredCol - Math.floor(draggingPiece.shape[0].length / 2);
       
@@ -237,7 +243,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
   if (loading) return (
     <div className="flex flex-col items-center justify-center gap-4 h-full">
       <Loader2 className="animate-spin text-primary h-12 w-12" />
-      <p className="font-headline font-bold">L'IA prépare votre grille...</p>
+      <p className="font-headline font-bold">Préparation du plateau...</p>
     </div>
   );
 
@@ -249,12 +255,12 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       onMouseUp={onDragEnd}
       onTouchEnd={onDragEnd}
     >
-      <div className="text-4xl font-headline font-bold text-primary">Score: {score}</div>
+      <div className="text-4xl font-headline font-bold text-primary drop-shadow-sm">Score: {score}</div>
 
       <div className="relative">
         <div 
           id="blast-grid"
-          className="grid gap-1 bg-muted/30 p-2 rounded-2xl border-4 border-primary shadow-2xl"
+          className="grid gap-1 bg-muted/20 p-2 rounded-2xl border-4 border-primary shadow-2xl"
           style={{ 
             width: 'min(90vw, 450px)', 
             height: 'min(90vw, 450px)',
@@ -268,7 +274,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
                 key={`${r}-${c}`} 
                 className={cn(
                   "aspect-square rounded-md transition-all border border-black/5",
-                  isClearing ? "animate-pulse brightness-150 scale-95" : "duration-300"
+                  isClearing ? "animate-pulse brightness-200 scale-95" : "duration-200"
                 )}
                 style={{ backgroundColor: cell || 'rgba(0,0,0,0.05)' }}
               />
@@ -277,23 +283,23 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
         </div>
 
         {isGameOver && (
-          <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center z-20 backdrop-blur-sm rounded-xl">
-            <h2 className="text-5xl font-headline font-bold text-destructive mb-4">GAME OVER</h2>
-            <p className="text-2xl font-bold mb-6">Score Final: {score}</p>
-            <Button onClick={fetchLevel} size="lg" className="rounded-full px-12 py-8 text-xl font-bold shadow-xl">
+          <div className="absolute inset-0 bg-background/95 flex flex-col items-center justify-center p-4 text-center z-20 backdrop-blur-md rounded-xl">
+            <h2 className="text-5xl font-headline font-bold text-destructive mb-4 tracking-tighter">PLUS DE COUPS !</h2>
+            <p className="text-2xl font-bold mb-8">Score Final: {score}</p>
+            <Button onClick={startNewGame} size="lg" className="rounded-full px-12 py-8 text-xl font-bold shadow-2xl hover:scale-105 transition-transform">
               <RotateCcw className="mr-3 h-6 w-6" /> Rejouer
             </Button>
           </div>
         )}
       </div>
 
-      <div className="flex gap-6 min-h-[140px] items-center">
+      <div className="flex gap-6 min-h-[140px] items-center justify-center w-full">
         {pieces.map((p) => (
           <div 
             key={p.id}
             className={cn(
               "cursor-grab active:cursor-grabbing transition-transform flex items-center justify-center",
-              draggingPiece?.id === p.id ? 'fixed z-50 pointer-events-none scale-125' : 'hover:scale-105'
+              draggingPiece?.id === p.id ? 'fixed z-50 pointer-events-none scale-125' : 'hover:scale-110'
             )}
             style={draggingPiece?.id === p.id ? { left: mousePos.x, top: mousePos.y, transform: 'translate(-50%, -50%)' } : {}}
             onMouseDown={(e) => onDragStart(p, e)}
@@ -307,7 +313,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
               {p.shape.map((row, r) => row.map((val, c) => (
                 <div 
                   key={`${r}-${c}`} 
-                  className="w-8 h-8 rounded-md border border-black/10 shadow-sm"
+                  className="w-7 h-7 md:w-8 md:h-8 rounded-md border border-black/10 shadow-sm"
                   style={{ backgroundColor: val ? p.color : 'transparent', opacity: val ? 1 : 0 }}
                 />
               )))}
@@ -316,13 +322,14 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
         ))}
       </div>
       
-      <p className="text-muted-foreground text-sm font-medium bg-muted/50 px-4 py-2 rounded-full">
-        Score x2 si vous videz la grille !
-      </p>
-
-      <Button variant="ghost" size="sm" onClick={fetchLevel} className="mt-2">
-        <RotateCcw className="mr-2 h-4 w-4" /> Réinitialiser
-      </Button>
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-muted-foreground text-xs font-bold bg-muted/50 px-4 py-2 rounded-full uppercase tracking-wider">
+          Score x2 si vous videz la grille !
+        </p>
+        <Button variant="ghost" size="sm" onClick={startNewGame} className="text-muted-foreground hover:text-primary">
+          <RotateCcw className="mr-2 h-4 w-4" /> Réinitialiser le plateau
+        </Button>
+      </div>
     </div>
   );
 }
