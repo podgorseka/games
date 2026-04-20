@@ -3,44 +3,44 @@
     {
       "id": "apex-racer",
       "description": "Apex Racer Cyberpunk Highway",
-      "imageUrl": "https://picsum.photos/seed/apex_cyber/600/400",
-      "imageHint": "cyberpunk highway"
+      "imageUrl": "https://picsum.photos/seed/apex_real/600/400",
+      "imageHint": "cyberpunk highway night"
     },
     {
       "id": "block-blast",
       "description": "Block Blast Puzzle",
-      "imageUrl": "https://picsum.photos/seed/block_puzzle/600/400",
-      "imageHint": "puzzle blocks"
+      "imageUrl": "https://picsum.photos/seed/block_square/600/400",
+      "imageHint": "colorful puzzle blocks"
     },
     {
       "id": "platformer-cube",
       "description": "Platformer Cube Synthwave",
-      "imageUrl": "https://picsum.photos/seed/synth_cube/600/400",
-      "imageHint": "synthwave neon"
+      "imageUrl": "https://picsum.photos/seed/synth_landscape/600/400",
+      "imageHint": "synthwave neon landscape"
     },
     {
       "id": "snake",
       "description": "Neon Snake Retro",
-      "imageUrl": "https://picsum.photos/seed/neon_snake/600/400",
-      "imageHint": "neon snake"
+      "imageUrl": "https://picsum.photos/seed/snake_neon/600/400",
+      "imageHint": "neon snake game"
     },
     {
       "id": "tetris",
       "description": "Classic Tetris Blocks",
-      "imageUrl": "https://picsum.photos/seed/tetris_blocks/600/400",
-      "imageHint": "stacking blocks"
+      "imageUrl": "https://picsum.photos/seed/tetris_stack/600/400",
+      "imageHint": "tetris blocks pattern"
     },
     {
       "id": "flappy-bird",
       "description": "Stylized Flappy Bird",
-      "imageUrl": "https://picsum.photos/seed/stylized_bird/600/400",
-      "imageHint": "flying bird"
+      "imageUrl": "https://picsum.photos/seed/bird_fly/600/400",
+      "imageHint": "flying bird game"
     },
     {
       "id": "pong",
       "description": "Pro Neon Pong",
-      "imageUrl": "https://picsum.photos/seed/pro_pong/600/400",
-      "imageHint": "neon pong"
+      "imageUrl": "https://picsum.photos/seed/pong_minimal/600/400",
+      "imageHint": "minimalist neon pong"
     }
   ]
 }
