@@ -17,12 +17,12 @@ import {
 // ---------- Constants ----------
 const CW = 960
 const CH = 540
-const HORIZON = Math.floor(CH * 0.42)
+const HORIZON = Math.floor(CH * 0.46)
 const ROAD_Y_BOTTOM = CH
-const ROAD_HALF_NEAR = 470 // half-width of road at the bottom (near camera)
-const ROAD_HALF_FAR = 18   // half-width of road at the horizon (far)
+const ROAD_HALF_NEAR = 520 // half-width of road at the bottom (near camera)
+const ROAD_HALF_FAR = 6    // half-width of road at the horizon (far) — sharper convergence = more 3D
 const LANE_COUNT = 4
-const PLAYER_X_LIMIT = ROAD_HALF_NEAR - 70 // how far player can steer
+const PLAYER_X_LIMIT = ROAD_HALF_NEAR - 90 // how far player can steer
 const PLAYER_Y = CH - 110 // player car projected y (fixed)
 const MAX_TRAFFIC = 7
 const MAX_COINS = 6
@@ -32,14 +32,13 @@ const NEAR_MISS_DIST = 72 // distance in px (screen-space) at player line
 // We use a non-linear curve for stronger perspective at far distance.
 const projectZ = (z: number) => {
   // z is 0..1 where 0 = near, 1 = far (horizon)
-  // y goes from CH (bottom) to HORIZON
-  // scale shrinks with z
-  const t = z
-  // ease to compress near the horizon
-  const ease = 1 - Math.pow(1 - t, 2.4)
-  const y = ROAD_Y_BOTTOM - (ROAD_Y_BOTTOM - HORIZON) * ease
-  // perspective scale
-  const scale = 1 - ease * 0.985
+  // Physically-inspired perspective: objects fall off with 1/d. This gives a proper "zoom-in" 3D feel
+  // like real pseudo-3D racers (MR Racer / OutRun).
+  const cameraDepth = 0.84     // tunes FOV: lower = wider, higher = more zoomed
+  const d = cameraDepth + z * 6.0 // virtual depth of the point
+  const scale = cameraDepth / d    // 1 at z=0, ~0.12 at z=1
+  const roadLen = ROAD_Y_BOTTOM - HORIZON
+  const y = ROAD_Y_BOTTOM - roadLen * (1 - scale)
   return { y, scale }
 }
 
@@ -390,12 +389,12 @@ export default function ApexRacer({
     const playerRight = playerX.current + 58
     for (const v of traffic.current) {
       if (v.z > 0.02 && v.z < 0.12) {
-        // Near player; check collision
+        // Near player; check collision (must match render-time projection exactly)
         const vx = laneToX(v.lane)
         const proj = projectZ(v.z)
-        const carW = 110 * (0.4 + proj.scale * 0.6)
-        const carY = proj.y - 20 * proj.scale
-        const vxScreen = vx * (0.5 + proj.scale * 0.5)
+        const carW = 100 * proj.scale
+        const carY = proj.y - 10 * proj.scale
+        const vxScreen = vx * proj.scale
         const vLeft = vxScreen - carW / 2
         const vRight = vxScreen + carW / 2
         const vertOverlap = Math.abs(carY - PLAYER_Y) < 70
@@ -411,7 +410,7 @@ export default function ApexRacer({
       if (v.z < 0.1 && v.z > 0.02 && !nearMissArm.current[v.id]) {
         const vx = laneToX(v.lane)
         const proj = projectZ(v.z)
-        const vxScreen = vx * (0.5 + proj.scale * 0.5)
+        const vxScreen = vx * proj.scale
         const dx = Math.abs(vxScreen - playerX.current)
         if (dx < NEAR_MISS_DIST + 60 && dx > 50) {
           nearMissArm.current[v.id] = true
@@ -447,7 +446,7 @@ export default function ApexRacer({
       if (c.z < 0.08 && c.z > 0) {
         const cx = laneToX(c.lane)
         const proj = projectZ(c.z)
-        const cxScreen = cx * (0.5 + proj.scale * 0.5)
+        const cxScreen = cx * proj.scale
         const dy = Math.abs(proj.y - PLAYER_Y)
         if (Math.abs(cxScreen - playerX.current) < 60 && dy < 40) {
           c.collected = true
@@ -891,7 +890,7 @@ export default function ApexRacer({
     for (const c of coinsArr.current) {
       if (c.collected || c.z < 0 || c.z > 1) continue
       const proj = projectZ(c.z)
-      const cx = laneToX(c.lane) * (0.5 + proj.scale * 0.5)
+      const cx = laneToX(c.lane) * proj.scale
       const cy = proj.y - 24 * proj.scale
       const r = 14 * proj.scale + 2
       // coin with rotation
@@ -1011,8 +1010,10 @@ export default function ApexRacer({
   // ---------- Car drawing helpers ----------
   const drawCar = (ctx: CanvasRenderingContext2D, roadCenterX: number, v: Vehicle) => {
     const proj = projectZ(v.z)
-    // At far z (horizon), cars almost at road center; near z, full lane offset.
-    const laneOffset = laneToX(v.lane) * (0.5 + proj.scale * 0.5)
+    // Correct pseudo-3D perspective: at the horizon (scale=0) cars converge to the road's vanishing
+    // point; at the camera (scale=1) they occupy their full lane offset. This makes traffic appear
+    // from inside the road, not from the sides of the screen.
+    const laneOffset = laneToX(v.lane) * proj.scale
     const cx = roadCenterX + laneOffset
     const cy = proj.y - 10 * proj.scale
     const baseW = v.type === 'truck' ? 80 : v.type === 'sport' ? 58 : 68
@@ -1118,129 +1119,280 @@ export default function ApexRacer({
     steer: number,
     nitroActive: boolean
   ) => {
-    const w = 112
-    const h = 178
-    const tilt = steer * 0.09
+    // View from slightly above & behind — a proper chase-cam supercar silhouette.
+    const w = 132
+    const h = 210
+    const tilt = steer * 0.11
 
-    // Underglow
+    // Ground contact shadow (soft, elongated)
+    const shadow = ctx.createRadialGradient(cx, cy + h * 0.48, 0, cx, cy + h * 0.48, w * 0.95)
+    shadow.addColorStop(0, 'rgba(0,0,0,0.75)')
+    shadow.addColorStop(0.55, 'rgba(0,0,0,0.35)')
+    shadow.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = shadow
+    ctx.beginPath()
+    ctx.ellipse(cx, cy + h * 0.48, w * 0.85, w * 0.22, 0, 0, Math.PI * 2)
+    ctx.fill()
+
+    // Underglow (wide neon halo beneath car)
     ctx.save()
     ctx.globalCompositeOperation = 'lighter'
-    const ug = ctx.createRadialGradient(cx, cy + h * 0.55, 0, cx, cy + h * 0.55, w * 1.4)
-    ug.addColorStop(0, nitroActive ? 'rgba(251, 146, 60, 0.6)' : 'rgba(34, 211, 238, 0.45)')
+    const ug = ctx.createRadialGradient(cx, cy + h * 0.3, 0, cx, cy + h * 0.3, w * 1.6)
+    ug.addColorStop(0, nitroActive ? 'rgba(251,146,60,0.7)' : 'rgba(34,211,238,0.55)')
+    ug.addColorStop(0.5, nitroActive ? 'rgba(239,68,68,0.25)' : 'rgba(14,165,233,0.2)')
     ug.addColorStop(1, 'rgba(0,0,0,0)')
     ctx.fillStyle = ug
-    ctx.fillRect(cx - w * 2, cy - 30, w * 4, h)
+    ctx.fillRect(cx - w * 2.2, cy - h * 0.2, w * 4.4, h * 1.2)
     ctx.restore()
-
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'
-    ctx.beginPath()
-    ctx.ellipse(cx, cy + h * 0.45, w * 0.55, w * 0.18, 0, 0, Math.PI * 2)
-    ctx.fill()
 
     ctx.save()
     ctx.translate(cx, cy)
     ctx.rotate(tilt)
 
-    // Body (view from behind — red sports car)
-    const bodyGrad = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2)
-    bodyGrad.addColorStop(0, '#7f1d1d')
-    bodyGrad.addColorStop(0.5, '#dc2626')
-    bodyGrad.addColorStop(1, '#450a0a')
-    ctx.fillStyle = bodyGrad
-    roundRect(ctx, -w / 2, -h / 2, w, h, 18)
+    // ========= BODY SILHOUETTE =========
+    // Lower chassis (wider than upper body) — gives a planted look
+    ctx.fillStyle = '#0b0b0f'
+    roundRect(ctx, -w / 2 - 6, -h * 0.3, w + 12, h * 0.78, 10)
     ctx.fill()
 
-    // Hood highlight (near the front = top of screen)
-    const hood = ctx.createLinearGradient(0, -h / 2, 0, -h / 2 + h * 0.25)
-    hood.addColorStop(0, 'rgba(255,255,255,0.25)')
-    hood.addColorStop(1, 'rgba(255,255,255,0)')
-    ctx.fillStyle = hood
-    roundRect(ctx, -w / 2 + 6, -h / 2 + 4, w - 12, h * 0.22, 12)
-    ctx.fill()
-
-    // Roof / windshield
-    const glass = ctx.createLinearGradient(0, -h * 0.28, 0, h * 0.1)
-    glass.addColorStop(0, '#0f172a')
-    glass.addColorStop(1, '#0ea5e9')
-    ctx.fillStyle = glass
-    roundRect(ctx, -w * 0.36, -h * 0.32, w * 0.72, h * 0.42, 12)
-    ctx.fill()
-    // racing stripe
-    ctx.fillStyle = '#f8fafc'
-    ctx.fillRect(-4, -h / 2 + 4, 8, h - 8)
-
-    // Rear window
-    ctx.fillStyle = '#0b1220'
-    roundRect(ctx, -w * 0.34, h * 0.1, w * 0.68, h * 0.22, 10)
-    ctx.fill()
-
-    // Spoiler
-    ctx.fillStyle = '#0f172a'
-    roundRect(ctx, -w * 0.48, h * 0.38, w * 0.96, 10, 3)
-    ctx.fill()
-    ctx.fillStyle = '#1e293b'
-    ctx.fillRect(-w * 0.35, h * 0.32, 4, 14)
-    ctx.fillRect(w * 0.35 - 4, h * 0.32, 4, 14)
-
-    // Headlights
-    ctx.save()
-    ctx.globalCompositeOperation = 'lighter'
-    ctx.fillStyle = '#fef3c7'
-    roundRect(ctx, -w / 2 + 8, -h / 2 + 6, w * 0.22, 10, 4)
-    ctx.fill()
-    roundRect(ctx, w / 2 - w * 0.22 - 8, -h / 2 + 6, w * 0.22, 10, 4)
-    ctx.fill()
-    // headlight beams
-    const beam = ctx.createLinearGradient(0, -h / 2, 0, -h)
-    beam.addColorStop(0, 'rgba(254, 243, 199, 0.35)')
-    beam.addColorStop(1, 'rgba(254, 243, 199, 0)')
-    ctx.fillStyle = beam
+    // Main body shape (tapered nose, wider rear)
     ctx.beginPath()
-    ctx.moveTo(-w * 0.35, -h / 2 + 4)
-    ctx.lineTo(w * 0.35, -h / 2 + 4)
-    ctx.lineTo(w * 0.9, -h)
-    ctx.lineTo(-w * 0.9, -h)
+    const noseW = w * 0.78
+    const tailW = w
+    ctx.moveTo(-noseW / 2, -h / 2 + 6)
+    ctx.quadraticCurveTo(-w / 2 - 4, -h * 0.1, -tailW / 2, h * 0.42)
+    ctx.quadraticCurveTo(-tailW / 2, h / 2, -tailW / 2 + 10, h / 2)
+    ctx.lineTo(tailW / 2 - 10, h / 2)
+    ctx.quadraticCurveTo(tailW / 2, h / 2, tailW / 2, h * 0.42)
+    ctx.quadraticCurveTo(w / 2 + 4, -h * 0.1, noseW / 2, -h / 2 + 6)
+    ctx.quadraticCurveTo(0, -h / 2 - 10, -noseW / 2, -h / 2 + 6)
+    ctx.closePath()
+    const bodyGrad = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2)
+    bodyGrad.addColorStop(0, '#450a0a')
+    bodyGrad.addColorStop(0.35, '#ef4444')
+    bodyGrad.addColorStop(0.55, '#f87171')
+    bodyGrad.addColorStop(0.75, '#dc2626')
+    bodyGrad.addColorStop(1, '#1a0404')
+    ctx.fillStyle = bodyGrad
+    ctx.fill()
+    // Rim/outline for crispness
+    ctx.strokeStyle = '#7f1d1d'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+
+    // Specular highlight along the top edges (glossy paint)
+    const gloss = ctx.createLinearGradient(0, -h / 2, 0, 0)
+    gloss.addColorStop(0, 'rgba(255,255,255,0.55)')
+    gloss.addColorStop(0.6, 'rgba(255,255,255,0.05)')
+    gloss.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = gloss
+    ctx.beginPath()
+    ctx.moveTo(-noseW / 2 + 8, -h / 2 + 10)
+    ctx.quadraticCurveTo(0, -h / 2 - 2, noseW / 2 - 8, -h / 2 + 10)
+    ctx.quadraticCurveTo(w * 0.36, -h * 0.1, w * 0.28, h * 0.05)
+    ctx.lineTo(-w * 0.28, h * 0.05)
+    ctx.quadraticCurveTo(-w * 0.36, -h * 0.1, -noseW / 2 + 8, -h / 2 + 10)
+    ctx.closePath()
+    ctx.fill()
+
+    // ========= HOOD DETAILS =========
+    // Hood creases (two parallel ridges)
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(-w * 0.22, -h * 0.42)
+    ctx.lineTo(-w * 0.28, -h * 0.1)
+    ctx.moveTo(w * 0.22, -h * 0.42)
+    ctx.lineTo(w * 0.28, -h * 0.1)
+    ctx.stroke()
+    // Hood vents
+    ctx.fillStyle = '#0b0b0f'
+    roundRect(ctx, -w * 0.18, -h * 0.35, w * 0.12, h * 0.06, 2)
+    ctx.fill()
+    roundRect(ctx, w * 0.06, -h * 0.35, w * 0.12, h * 0.06, 2)
+    ctx.fill()
+    // Vent slats
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+    ctx.lineWidth = 1
+    for (let i = 1; i < 4; i++) {
+      const yv = -h * 0.35 + (h * 0.06 * i) / 4
+      ctx.beginPath()
+      ctx.moveTo(-w * 0.18 + 2, yv)
+      ctx.lineTo(-w * 0.18 + w * 0.12 - 2, yv)
+      ctx.moveTo(w * 0.06 + 2, yv)
+      ctx.lineTo(w * 0.06 + w * 0.12 - 2, yv)
+      ctx.stroke()
+    }
+
+    // ========= WINDSHIELD + ROOF =========
+    // Windshield (bigger, angled, with strong reflection)
+    ctx.save()
+    ctx.beginPath()
+    ctx.moveTo(-w * 0.3, -h * 0.08)
+    ctx.quadraticCurveTo(0, -h * 0.12, w * 0.3, -h * 0.08)
+    ctx.lineTo(w * 0.34, h * 0.12)
+    ctx.quadraticCurveTo(0, h * 0.16, -w * 0.34, h * 0.12)
+    ctx.closePath()
+    const wsGrad = ctx.createLinearGradient(0, -h * 0.1, 0, h * 0.15)
+    wsGrad.addColorStop(0, '#0b1220')
+    wsGrad.addColorStop(0.5, '#1e3a8a')
+    wsGrad.addColorStop(1, '#0ea5e9')
+    ctx.fillStyle = wsGrad
+    ctx.fill()
+    // Reflection streak
+    ctx.fillStyle = 'rgba(255,255,255,0.22)'
+    ctx.beginPath()
+    ctx.moveTo(-w * 0.22, -h * 0.06)
+    ctx.lineTo(-w * 0.02, -h * 0.05)
+    ctx.lineTo(-w * 0.08, h * 0.1)
+    ctx.lineTo(-w * 0.28, h * 0.09)
     ctx.closePath()
     ctx.fill()
     ctx.restore()
 
-    // Tail lights
+    // Rear window (smaller, darker)
+    const rw = ctx.createLinearGradient(0, h * 0.2, 0, h * 0.38)
+    rw.addColorStop(0, '#1e293b')
+    rw.addColorStop(1, '#0b1220')
+    ctx.fillStyle = rw
+    roundRect(ctx, -w * 0.32, h * 0.2, w * 0.64, h * 0.18, 8)
+    ctx.fill()
+
+    // Racing stripes (twin)
+    ctx.fillStyle = '#f8fafc'
+    ctx.fillRect(-w * 0.08, -h / 2 + 2, 6, h - 4)
+    ctx.fillRect(w * 0.08 - 6, -h / 2 + 2, 6, h - 4)
+
+    // ========= AERO / SPOILER =========
+    // Rear wing supports
+    ctx.fillStyle = '#0b0b0f'
+    ctx.fillRect(-w * 0.34, h * 0.38, 5, 18)
+    ctx.fillRect(w * 0.34 - 5, h * 0.38, 5, 18)
+    // Wing blade
+    const wing = ctx.createLinearGradient(0, h * 0.44, 0, h * 0.5)
+    wing.addColorStop(0, '#18181b')
+    wing.addColorStop(1, '#3f3f46')
+    ctx.fillStyle = wing
+    roundRect(ctx, -w * 0.52, h * 0.44, w * 1.04, 8, 3)
+    ctx.fill()
+    // Diffuser
+    ctx.fillStyle = '#0b0b0f'
+    roundRect(ctx, -w * 0.42, h * 0.47, w * 0.84, 7, 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'
+    ctx.lineWidth = 1
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath()
+      ctx.moveTo(i * w * 0.12, h * 0.47)
+      ctx.lineTo(i * w * 0.12, h * 0.54)
+      ctx.stroke()
+    }
+
+    // ========= WHEELS (chunky with rims) =========
+    const drawWheel = (wx: number, wy: number) => {
+      ctx.fillStyle = '#0a0a0a'
+      roundRect(ctx, wx - 11, wy - 20, 22, 40, 4)
+      ctx.fill()
+      // Tire sidewall
+      ctx.fillStyle = '#1f1f23'
+      roundRect(ctx, wx - 11, wy - 20, 22, 40, 4)
+      ctx.fill()
+      // Rim
+      ctx.fillStyle = '#e2e8f0'
+      ctx.beginPath()
+      ctx.arc(wx, wy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#475569'
+      ctx.beginPath()
+      ctx.arc(wx, wy, 5, 0, Math.PI * 2)
+      ctx.fill()
+      // Spokes
+      ctx.strokeStyle = '#94a3b8'
+      ctx.lineWidth = 1.5
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 + tick.current * 0.35
+        ctx.beginPath()
+        ctx.moveTo(wx, wy)
+        ctx.lineTo(wx + Math.cos(a) * 5, wy + Math.sin(a) * 5)
+        ctx.stroke()
+      }
+    }
+    drawWheel(-w / 2 + 4, -h * 0.22)
+    drawWheel(w / 2 - 4, -h * 0.22)
+    drawWheel(-w / 2 + 4, h * 0.18)
+    drawWheel(w / 2 - 4, h * 0.18)
+
+    // ========= LIGHTS =========
+    // Headlights (front = top of screen). Angular LED strips.
     ctx.save()
     ctx.globalCompositeOperation = 'lighter'
-    ctx.fillStyle = '#fca5a5'
-    roundRect(ctx, -w / 2 + 6, h / 2 - 14, w * 0.35, 8, 3)
+    const hlGrad = ctx.createLinearGradient(0, -h / 2, 0, -h / 2 + 14)
+    hlGrad.addColorStop(0, '#ffffff')
+    hlGrad.addColorStop(1, '#fef3c7')
+    ctx.fillStyle = hlGrad
+    ctx.beginPath()
+    ctx.moveTo(-noseW / 2 + 6, -h / 2 + 10)
+    ctx.lineTo(-w * 0.08, -h / 2 + 16)
+    ctx.lineTo(-w * 0.08, -h / 2 + 22)
+    ctx.lineTo(-noseW / 2 + 12, -h / 2 + 18)
+    ctx.closePath()
     ctx.fill()
-    roundRect(ctx, w / 2 - w * 0.35 - 6, h / 2 - 14, w * 0.35, 8, 3)
+    ctx.beginPath()
+    ctx.moveTo(noseW / 2 - 6, -h / 2 + 10)
+    ctx.lineTo(w * 0.08, -h / 2 + 16)
+    ctx.lineTo(w * 0.08, -h / 2 + 22)
+    ctx.lineTo(noseW / 2 - 12, -h / 2 + 18)
+    ctx.closePath()
     ctx.fill()
-    const tl = ctx.createRadialGradient(0, h / 2, 0, 0, h / 2, w)
-    tl.addColorStop(0, 'rgba(239, 68, 68, 0.5)')
-    tl.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.fillStyle = tl
-    ctx.fillRect(-w * 1.2, h / 2 - 10, w * 2.4, 40)
+    // Beams forward (up on screen)
+    const beam = ctx.createLinearGradient(0, -h / 2, 0, -h * 1.1)
+    beam.addColorStop(0, 'rgba(254, 243, 199, 0.4)')
+    beam.addColorStop(1, 'rgba(254, 243, 199, 0)')
+    ctx.fillStyle = beam
+    ctx.beginPath()
+    ctx.moveTo(-w * 0.4, -h / 2 + 8)
+    ctx.lineTo(w * 0.4, -h / 2 + 8)
+    ctx.lineTo(w * 1.1, -h * 1.05)
+    ctx.lineTo(-w * 1.1, -h * 1.05)
+    ctx.closePath()
+    ctx.fill()
     ctx.restore()
 
-    // Wheels (dark with chrome)
-    ctx.fillStyle = '#0a0a0a'
-    const ww = 16
-    const wh = 30
-    ctx.fillRect(-w / 2 - 2, -h * 0.3, ww, wh)
-    ctx.fillRect(w / 2 - ww + 2, -h * 0.3, ww, wh)
-    ctx.fillRect(-w / 2 - 2, h * 0.1, ww, wh)
-    ctx.fillRect(w / 2 - ww + 2, h * 0.1, ww, wh)
-    // chrome rim dots
-    ctx.fillStyle = '#94a3b8'
-    ctx.beginPath()
-    ctx.arc(-w / 2 + ww / 2 - 2, -h * 0.3 + wh / 2, 3, 0, Math.PI * 2)
-    ctx.arc(w / 2 - ww / 2 + 2, -h * 0.3 + wh / 2, 3, 0, Math.PI * 2)
-    ctx.arc(-w / 2 + ww / 2 - 2, h * 0.1 + wh / 2, 3, 0, Math.PI * 2)
-    ctx.arc(w / 2 - ww / 2 + 2, h * 0.1 + wh / 2, 3, 0, Math.PI * 2)
+    // Taillight bar across the full rear (modern LED look)
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    const tailGrad = ctx.createLinearGradient(-w / 2, 0, w / 2, 0)
+    tailGrad.addColorStop(0, '#7f1d1d')
+    tailGrad.addColorStop(0.2, '#ef4444')
+    tailGrad.addColorStop(0.5, '#f87171')
+    tailGrad.addColorStop(0.8, '#ef4444')
+    tailGrad.addColorStop(1, '#7f1d1d')
+    ctx.fillStyle = tailGrad
+    roundRect(ctx, -w * 0.44, h * 0.38, w * 0.88, 6, 2)
     ctx.fill()
+    // Halo
+    const tlG = ctx.createRadialGradient(0, h * 0.42, 0, 0, h * 0.42, w * 1.2)
+    tlG.addColorStop(0, 'rgba(239, 68, 68, 0.55)')
+    tlG.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = tlG
+    ctx.fillRect(-w * 1.4, h * 0.3, w * 2.8, 50)
+    // Brake-style center pulse
+    ctx.fillStyle = 'rgba(255,255,255,0.8)'
+    ctx.fillRect(-w * 0.05, h * 0.39, w * 0.1, 3)
+    ctx.restore()
 
-    // Exhaust
-    ctx.fillStyle = '#334155'
-    ctx.fillRect(-18, h / 2 - 6, 10, 10)
-    ctx.fillRect(8, h / 2 - 6, 10, 10)
+    // Exhaust tips
+    ctx.fillStyle = '#64748b'
+    roundRect(ctx, -w * 0.2, h * 0.48, 14, 7, 3)
+    ctx.fill()
+    roundRect(ctx, w * 0.2 - 14, h * 0.48, 14, 7, 3)
+    ctx.fill()
+    // Inner exhaust (black)
+    ctx.fillStyle = '#0b0b0f'
+    roundRect(ctx, -w * 0.2 + 2, h * 0.48 + 2, 10, 3, 1.5)
+    ctx.fill()
+    roundRect(ctx, w * 0.2 - 14 + 2, h * 0.48 + 2, 10, 3, 1.5)
+    ctx.fill()
 
     ctx.restore()
   }
@@ -1395,24 +1547,18 @@ export default function ApexRacer({
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 w-screen h-[100dvh] select-none flex items-center justify-center bg-black overflow-hidden touch-none"
+      className="absolute inset-0 w-full h-full select-none flex items-center justify-center bg-black overflow-hidden touch-none"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
     >
-      {/* 16:9 letterbox so the canvas never distorts on portrait or ultrawide screens */}
-      <div
-        className="relative"
-        style={{
-          width: 'min(100vw, calc(100dvh * 16 / 9))',
-          height: 'min(100dvh, calc(100vw * 9 / 16))',
-        }}
-      >
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full block"
-        />
+      {/* Canvas fills the entire available space; the 960x540 internal bitmap is stretched with CSS */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full block"
+        style={{ width: '100%', height: '100%' }}
+      />
 
         {/* HUD (playing) */}
         {gameState === 'playing' && (
@@ -1629,7 +1775,6 @@ export default function ApexRacer({
             </Button>
           </div>
         )}
-      </div>
     </div>
   )
 }
