@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -102,10 +103,10 @@ export default function Snake({ onGameOver, isMobile }: { onGameOver: (score: nu
       </div>
       {isMobile && !gameOver && (
         <div className="grid grid-cols-3 gap-2 w-full max-w-[280px] mt-4">
-          <div /><Button variant="outline" size="icon" className="h-16 w-16" onClick={() => updateDirection({ x: 0, y: -1 })}><ArrowUp /></Button><div />
-          <Button variant="outline" size="icon" className="h-16 w-16" onClick={() => updateDirection({ x: -1, y: 0 })}><ArrowLeft /></Button>
-          <Button variant="outline" size="icon" className="h-16 w-16" onClick={() => updateDirection({ x: 0, y: 1 })}><ArrowDown /></Button>
-          <Button variant="outline" size="icon" className="h-16 w-16" onClick={() => updateDirection({ x: 1, y: 0 })}><ArrowRight /></Button>
+          <div /><Button variant="outline" size="icon" className="h-16 w-16" onTouchStart={() => updateDirection({ x: 0, y: -1 })}><ArrowUp /></Button><div />
+          <Button variant="outline" size="icon" className="h-16 w-16" onTouchStart={() => updateDirection({ x: -1, y: 0 })}><ArrowLeft /></Button>
+          <Button variant="outline" size="icon" className="h-16 w-16" onTouchStart={() => updateDirection({ x: 0, y: 1 })}><ArrowDown /></Button>
+          <Button variant="outline" size="icon" className="h-16 w-16" onTouchStart={() => updateDirection({ x: 1, y: 0 })}><ArrowRight /></Button>
         </div>
       )}
     </div>

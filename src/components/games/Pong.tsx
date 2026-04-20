@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label';
 
 export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
   const [isTwoPlayer, setIsTwoPlayer] = useState(false);
@@ -18,7 +20,7 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
   const playerY = useRef(205);
   const aiY = useRef(205);
   const ball = useRef({ x: 400, y: 250, vx: 5, vy: 3 });
-  const paddleSpeed = 10;
+  const paddleSpeed = 12;
   const keysPressed = useRef<{ [key: string]: boolean }>({});
 
   const initGame = useCallback(() => {
@@ -29,62 +31,140 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
     setGameOver(false);
   }, []);
 
+  const handleTouch = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    if (gameOver) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const touches = 'touches' in e ? Array.from(e.touches) : [e];
+    
+    touches.forEach((t: any) => {
+      const clientY = 'clientY' in t ? t.clientY : t.pageY;
+      const clientX = 'clientX' in t ? t.clientX : t.pageX;
+      
+      const touchY = clientY - rect.top;
+      const touchX = clientX - rect.left;
+      
+      // Scale touch position to canvas internal height (500)
+      const scaleY = 500 / rect.height;
+      const scaledY = touchY * scaleY - paddleH / 2;
+      const clampedY = Math.max(0, Math.min(500 - paddleH, scaledY));
+
+      if (isTwoPlayer) {
+        // In 2P, left half controls left, right half controls right
+        if (touchX < rect.width / 2) {
+          playerY.current = clampedY;
+        } else {
+          aiY.current = clampedY;
+        }
+      } else {
+        // In 1P, the whole screen controls the player paddle
+        playerY.current = clampedY;
+      }
+    });
+  }, [isTwoPlayer, gameOver]);
+
   const update = useCallback(() => {
     if (gameOver) return;
 
-    // Player 1 (W/S or Up/Down if single)
-    if (keysPressed.current['ArrowUp'] || keysPressed.current['w']) playerY.current = Math.max(0, playerY.current - paddleSpeed);
-    if (keysPressed.current['ArrowDown'] || keysPressed.current['s']) playerY.current = Math.min(500 - paddleH, playerY.current + paddleSpeed);
+    // Keyboard Controls (Desktop)
+    if (keysPressed.current['w']) playerY.current = Math.max(0, playerY.current - paddleSpeed);
+    if (keysPressed.current['s']) playerY.current = Math.min(500 - paddleH, playerY.current + paddleSpeed);
+    if (keysPressed.current['arrowup']) playerY.current = Math.max(0, playerY.current - paddleSpeed);
+    if (keysPressed.current['arrowdown']) playerY.current = Math.min(500 - paddleH, playerY.current + paddleSpeed);
 
-    // Player 2 or AI
     if (isTwoPlayer) {
       if (keysPressed.current['o']) aiY.current = Math.max(0, aiY.current - paddleSpeed);
       if (keysPressed.current['l']) aiY.current = Math.min(500 - paddleH, aiY.current + paddleSpeed);
     } else {
+      // Improved AI
       const aiTarget = ball.current.y - paddleH / 2;
-      const aiSpeed = 4.5 + (score / 1000);
-      if (aiY.current < aiTarget) aiY.current = Math.min(500 - paddleH, aiY.current + aiSpeed);
-      else aiY.current = Math.max(0, aiY.current - aiSpeed);
+      const aiSpeed = 4.5 + (score / 1500);
+      const diff = aiTarget - aiY.current;
+      aiY.current += Math.sign(diff) * Math.min(Math.abs(diff), aiSpeed);
+      aiY.current = Math.max(0, Math.min(500 - paddleH, aiY.current));
     }
 
+    // Ball movement
     ball.current.x += ball.current.vx;
     ball.current.y += ball.current.vy;
 
-    if (ball.current.y <= 0 || ball.current.y >= 500) ball.current.vy *= -1;
+    // Wall bounce
+    if (ball.current.y <= 10 || ball.current.y >= 490) ball.current.vy *= -1;
 
-    // Collisions
-    if (ball.current.x <= 20 + paddleW && ball.current.y >= playerY.current && ball.current.y <= playerY.current + paddleH && ball.current.vx < 0) {
+    // Paddle Collisions
+    const ballRadius = 10;
+    
+    // Left Paddle
+    if (ball.current.x <= 20 + paddleW + ballRadius && 
+        ball.current.y >= playerY.current && 
+        ball.current.y <= playerY.current + paddleH && 
+        ball.current.vx < 0) {
       ball.current.vx = Math.abs(ball.current.vx) + 0.5;
       setScore(s => s + 10);
-      ball.current.vy = ((ball.current.y - (playerY.current + paddleH/2)) / (paddleH/2)) * 7;
+      // Change Y velocity based on where ball hits paddle
+      const impact = (ball.current.y - (playerY.current + paddleH/2)) / (paddleH/2);
+      ball.current.vy = impact * 8;
     }
 
-    if (ball.current.x >= 780 - paddleW && ball.current.y >= aiY.current && ball.current.y <= aiY.current + paddleH && ball.current.vx > 0) {
+    // Right Paddle
+    if (ball.current.x >= 780 - paddleW - ballRadius && 
+        ball.current.y >= aiY.current && 
+        ball.current.y <= aiY.current + paddleH && 
+        ball.current.vx > 0) {
       ball.current.vx = -(Math.abs(ball.current.vx) + 0.5);
       if (isTwoPlayer) setScore(s => s + 10);
+      const impact = (ball.current.y - (aiY.current + paddleH/2)) / (paddleH/2);
+      ball.current.vy = impact * 8;
     }
 
-    if (ball.current.x < 0 || ball.current.x > 800) setGameOver(true);
+    // Game Over
+    if (ball.current.x < -20 || ball.current.x > 820) {
+      setGameOver(true);
+    }
   }, [gameOver, score, isTwoPlayer]);
 
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, 800, 500);
+    
+    // Background
     ctx.fillStyle = '#FDFCFE';
     ctx.fillRect(0, 0, 800, 500);
     
+    // Center line
     ctx.setLineDash([15, 15]);
     ctx.strokeStyle = '#2600CC22';
     ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(400, 0); ctx.lineTo(400, 500); ctx.stroke();
     ctx.setLineDash([]);
 
+    // Paddles
     ctx.fillStyle = '#2600CC';
-    ctx.fillRect(20, playerY.current, paddleW, paddleH);
-    ctx.fillRect(780 - paddleW, aiY.current, paddleW, paddleH);
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#2600CC44';
     
+    // Draw rounded paddles
+    const drawPaddle = (x: number, y: number) => {
+      ctx.beginPath();
+      ctx.roundRect(x, y, paddleW, paddleH, 6);
+      ctx.fill();
+    };
+    
+    drawPaddle(20, playerY.current);
+    drawPaddle(780 - paddleW, aiY.current);
+    
+    // Ball
     ctx.fillStyle = '#FA1D64';
-    ctx.beginPath(); ctx.arc(ball.current.x, ball.current.y, 10, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#FA1D6466';
+    ctx.beginPath(); 
+    ctx.arc(ball.current.x, ball.current.y, 10, 0, Math.PI * 2); 
+    ctx.fill();
+    
+    ctx.strokeStyle = 'white'; 
+    ctx.lineWidth = 2; 
+    ctx.stroke();
+    ctx.shadowBlur = 0;
   }, []);
 
   useEffect(() => {
@@ -96,58 +176,64 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
   }, [update, draw]);
 
   useEffect(() => {
-    const handleDown = (e: KeyboardEvent) => { keysPressed.current[e.key.toLowerCase()] = true; if (e.key === 'ArrowUp') keysPressed.current['ArrowUp'] = true; if (e.key === 'ArrowDown') keysPressed.current['ArrowDown'] = true; };
-    const handleUp = (e: KeyboardEvent) => { keysPressed.current[e.key.toLowerCase()] = false; if (e.key === 'ArrowUp') keysPressed.current['ArrowUp'] = false; if (e.key === 'ArrowDown') keysPressed.current['ArrowDown'] = false; };
+    const handleDown = (e: KeyboardEvent) => { keysPressed.current[e.key.toLowerCase()] = true; };
+    const handleUp = (e: KeyboardEvent) => { keysPressed.current[e.key.toLowerCase()] = false; };
     window.addEventListener('keydown', handleDown);
     window.addEventListener('keyup', handleUp);
     return () => { window.removeEventListener('keydown', handleDown); window.removeEventListener('keyup', handleUp); };
   }, []);
 
-  const moveManual = (side: 'left' | 'right', dir: 'up' | 'down') => {
-    if (side === 'left') playerY.current = Math.max(0, playerY.current + (dir === 'up' ? -50 : 50));
-    else aiY.current = Math.max(0, aiY.current + (dir === 'up' ? -50 : 50));
-  };
+  useEffect(() => {
+    if (gameOver) onGameOver(score);
+  }, [gameOver, score, onGameOver]);
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full h-full justify-center p-4">
+    <div className="flex flex-col items-center gap-6 w-full h-full justify-center p-4 touch-none select-none">
       <div className="flex items-center gap-8">
         <div className="text-4xl font-headline font-bold text-primary">Score: {score}</div>
-        <div className="flex items-center space-x-2 bg-muted px-4 py-2 rounded-full border">
+        <div className="flex items-center space-x-2 bg-muted px-4 py-2 rounded-full border shadow-sm">
           <User className="h-4 w-4 text-muted-foreground" />
-          <Switch id="two-player" checked={isTwoPlayer} onCheckedChange={setIsTwoPlayer} />
+          <Switch id="two-player" checked={isTwoPlayer} onCheckedChange={(val) => { setIsTwoPlayer(val); initGame(); }} />
           <Users className="h-4 w-4 text-primary" />
-          <Label htmlFor="two-player" className="font-bold text-xs uppercase tracking-wider">2 Players Mode</Label>
+          <Label htmlFor="two-player" className="font-bold text-xs uppercase tracking-wider">2 Players</Label>
         </div>
       </div>
       
-      <canvas ref={canvasRef} width={800} height={500} className="w-full h-auto max-h-[55vh] border-4 border-primary rounded-3xl bg-white shadow-2xl" />
-      
-      {isMobile && !gameOver && (
-        <div className="flex w-full justify-between max-w-4xl px-4">
-          <div className="flex flex-col gap-2">
-            <Button variant="outline" className="h-16 w-20 rounded-2xl" onTouchStart={() => moveManual('left', 'up')}><User className="h-6 w-6" /></Button>
-            <Button variant="outline" className="h-16 w-20 rounded-2xl" onTouchStart={() => moveManual('left', 'down')}><User className="h-6 w-6" /></Button>
+      <div 
+        ref={containerRef}
+        className="relative w-full max-w-4xl"
+        onTouchStart={handleTouch}
+        onTouchMove={handleTouch}
+        onMouseMove={(e) => { if (e.buttons === 1) handleTouch(e as any); }}
+      >
+        <canvas 
+          ref={canvasRef} 
+          width={800} 
+          height={500} 
+          className="w-full h-auto max-h-[60vh] border-4 border-primary rounded-3xl bg-white shadow-2xl cursor-crosshair" 
+        />
+        
+        {!gameOver && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-between px-12 opacity-10">
+            <div className="text-6xl font-black">DRAG</div>
+            {isTwoPlayer && <div className="text-6xl font-black">DRAG</div>}
           </div>
-          {isTwoPlayer && (
-            <div className="flex flex-col gap-2">
-              <Button variant="outline" className="h-16 w-20 rounded-2xl border-primary" onTouchStart={() => moveManual('right', 'up')}><Users className="h-6 w-6 text-primary" /></Button>
-              <Button variant="outline" className="h-16 w-20 rounded-2xl border-primary" onTouchStart={() => moveManual('right', 'down')}><Users className="h-6 w-6 text-primary" /></Button>
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
-      {!isMobile && !gameOver && (
-        <div className="text-xs text-muted-foreground uppercase tracking-widest font-medium flex gap-8">
-          <span>P1: W/S or Arrow Keys</span>
-          {isTwoPlayer && <span>P2: O/L Keys</span>}
-        </div>
+      {!gameOver && (
+        <p className="text-muted-foreground text-sm font-medium animate-pulse">
+          {isMobile ? "Faites glisser votre doigt pour bouger la raquette" : "Maintenez le clic ou utilisez W/S"}
+        </p>
       )}
 
       {gameOver && (
-        <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 z-30 backdrop-blur-sm">
-          <h2 className="text-6xl font-headline font-bold text-destructive mb-4 tracking-tighter">GAME OVER</h2>
-          <Button onClick={initGame} size="lg" className="rounded-full px-12 py-8 text-2xl font-bold"><RotateCcw className="mr-3 h-8 w-8" /> Restart</Button>
+        <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 z-30 backdrop-blur-md">
+          <h2 className="text-7xl font-headline font-bold text-destructive mb-6 tracking-tighter">GAME OVER</h2>
+          <p className="text-3xl font-headline font-bold mb-10">Score Final: {score}</p>
+          <Button onClick={initGame} size="lg" className="rounded-full px-16 py-10 text-3xl font-bold shadow-2xl hover:scale-105 transition-transform">
+            <RotateCcw className="mr-3 h-10 w-10" /> Rejouer
+          </Button>
         </div>
       )}
     </div>
