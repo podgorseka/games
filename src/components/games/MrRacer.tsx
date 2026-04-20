@@ -132,8 +132,8 @@ export default function ApexRacer({
   const reset = useCallback(() => {
     playerX.current = 0
     playerVX.current = 0
-    speed.current = 0.006
-    targetSpeed.current = 0.0085
+    speed.current = 0.011
+    targetSpeed.current = 0.015
     nitro.current = 0
     nitroActive.current = false
     roadScroll.current = 0
@@ -177,13 +177,28 @@ export default function ApexRacer({
   // ---------- Spawning ----------
   const spawnTraffic = useCallback(() => {
     if (traffic.current.length >= MAX_TRAFFIC) return
-    // Random spawn interval based on current speed
+    // Low probability spawn, scaled very gently with speed
     const roll = Math.random()
-    if (roll > 0.06 + speed.current * 4) return
+    if (roll > 0.022 + speed.current * 0.6) return
 
-    const lane = Math.floor(Math.random() * LANE_COUNT)
-    // prevent overlap: no car in same lane with z > 0.88 already
-    if (traffic.current.some(c => c.lane === lane && c.z > 0.85)) return
+    // Never fully block all lanes in the far band — guarantee a passable gap
+    const farLanes = new Set(traffic.current.filter(c => c.z > 0.6).map(c => c.lane))
+    if (farLanes.size >= LANE_COUNT - 1) return
+
+    // Pick a lane that doesn't already have a car close to the horizon
+    const candidates: number[] = []
+    for (let l = 0; l < LANE_COUNT; l++) {
+      const blocker = traffic.current.find(c => c.lane === l && c.z > 0.7)
+      if (!blocker) candidates.push(l)
+    }
+    if (candidates.length === 0) return
+    const lane = candidates[Math.floor(Math.random() * candidates.length)]
+
+    // Also avoid spawning right next to another spawning lane (give player lateral space)
+    const adjacentBusy = traffic.current.some(
+      c => Math.abs(c.lane - lane) === 1 && c.z > 0.82
+    )
+    if (adjacentBusy && Math.random() < 0.7) return
 
     const palette = [
       { body: '#ef4444', accent: '#7f1d1d' },
@@ -196,14 +211,22 @@ export default function ApexRacer({
       { body: '#0f172a', accent: '#1e293b' },
     ]
     const r = Math.random()
-    const type: Vehicle['type'] = r > 0.9 ? 'truck' : r > 0.55 ? 'sport' : 'car'
+    const type: Vehicle['type'] = r > 0.92 ? 'truck' : r > 0.6 ? 'sport' : 'car'
     const pal = palette[Math.floor(Math.random() * palette.length)]
+    // AI traffic moves in the SAME direction as the player, almost as fast.
+    // The small difference is the "overtaking speed" — that's what makes them approachable & dodgeable.
+    // Trucks slower, sports faster.
+    const baseAiSpeed =
+      type === 'truck'
+        ? 0.0085 + Math.random() * 0.0015
+        : type === 'sport'
+        ? 0.011 + Math.random() * 0.002
+        : 0.0095 + Math.random() * 0.0018
     const v: Vehicle = {
       id: Math.random(),
       lane,
       z: 1,
-      // AI cars move "forward" more slowly than the world, so from player POV they come towards us
-      zVel: 0.0015 + Math.random() * 0.0025, // their own forward speed (subtract from player's to get relative)
+      zVel: baseAiSpeed,
       color: pal.body,
       accent: pal.accent,
       type,
@@ -301,8 +324,10 @@ export default function ApexRacer({
     cameraSway.current = Math.sin(tick.current * 0.03) * 0.6
 
     // Throttle / speed
-    const baseMax = 0.0165 // world units per frame (equiv ~330 kph)
-    const boostMax = 0.028
+    // Player slightly faster than traffic so you OVERTAKE them steadily (not slam into them).
+    // Traffic runs ~0.0085..0.013, so a delta of 0.003..0.006 gives comfortable dodge time.
+    const baseMax = 0.015 // world units per frame (equiv ~180 kph display)
+    const boostMax = 0.024
     let maxSpeed = baseMax
     nitroActive.current = false
     if (kNitro && nitro.current > 0.02) {
@@ -1370,26 +1395,23 @@ export default function ApexRacer({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full select-none flex items-center justify-center bg-black overflow-hidden"
+      className="fixed inset-0 w-screen h-[100dvh] select-none flex items-center justify-center bg-black overflow-hidden touch-none"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
     >
-      {/* Scaled canvas wrapper */}
+      {/* 16:9 letterbox so the canvas never distorts on portrait or ultrawide screens */}
       <div
         className="relative"
         style={{
-          width: '100%',
-          height: '100%',
-          maxWidth: '100vw',
-          maxHeight: '100vh',
+          width: 'min(100vw, calc(100dvh * 16 / 9))',
+          height: 'min(100dvh, calc(100vw * 9 / 16))',
         }}
       >
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
-          style={{ imageRendering: 'pixelated' }}
+          className="absolute inset-0 w-full h-full block"
         />
 
         {/* HUD (playing) */}
