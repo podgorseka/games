@@ -14,29 +14,31 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
   const CANVAS_WIDTH = 400;
   const CANVAS_HEIGHT = 600;
-  const TRACK_COUNT = 3;
-  const TRACK_WIDTH = CANVAS_WIDTH / TRACK_COUNT;
+  
+  // Pseudo-3D Perspective constants
+  const HORIZON = CANVAS_HEIGHT * 0.4;
+  const FOV = 100;
 
   const playerLane = useRef(1); // 0, 1, 2
   const playerYOffset = useRef(0);
-  const playerHeight = useRef(60);
   const isJumping = useRef(false);
   const isSliding = useRef(false);
   const jumpVelocity = useRef(0);
-  const obstacles = useRef<{ lane: number, y: number, type: 'jump' | 'slide' }[]>([]);
-  const coinsList = useRef<{ lane: number, y: number }[]>([]);
-  const gameSpeed = useRef(6);
+  const obstacles = useRef<{ lane: number, z: number, type: 'jump' | 'slide' }[]>([]);
+  const coinsList = useRef<{ lane: number, z: number }[]>([]);
+  const gameSpeed = useRef(2.5);
+  const roadOffset = useRef(0);
   const frameCount = useRef(0);
 
   const initGame = useCallback(() => {
     playerLane.current = 1;
     playerYOffset.current = 0;
-    playerHeight.current = 60;
     isJumping.current = false;
     isSliding.current = false;
     obstacles.current = [];
     coinsList.current = [];
-    gameSpeed.current = 6;
+    gameSpeed.current = 2.5;
+    roadOffset.current = 0;
     frameCount.current = 0;
     setScore(0);
     setCoins(0);
@@ -46,7 +48,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const moveLane = (dir: number) => {
     if (gameOver) return;
     const nextLane = playerLane.current + dir;
-    if (nextLane >= 0 && nextLane < TRACK_COUNT) {
+    if (nextLane >= 0 && nextLane < 3) {
       playerLane.current = nextLane;
     }
   };
@@ -54,19 +56,14 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const jump = () => {
     if (gameOver || isJumping.current) return;
     isJumping.current = true;
-    jumpVelocity.current = 15;
+    jumpVelocity.current = 12;
     isSliding.current = false;
-    playerHeight.current = 60;
   };
 
   const slide = () => {
     if (gameOver || isSliding.current) return;
     isSliding.current = true;
-    playerHeight.current = 30;
-    setTimeout(() => {
-      isSliding.current = false;
-      playerHeight.current = 60;
-    }, 800);
+    setTimeout(() => isSliding.current = false, 700);
   };
 
   const update = useCallback(() => {
@@ -74,11 +71,12 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
     frameCount.current++;
     setScore(s => s + 1);
+    roadOffset.current = (roadOffset.current + gameSpeed.current * 4) % 100;
 
     // Jump physics
     if (isJumping.current) {
       playerYOffset.current += jumpVelocity.current;
-      jumpVelocity.current -= 0.8;
+      jumpVelocity.current -= 0.6;
       if (playerYOffset.current <= 0) {
         playerYOffset.current = 0;
         isJumping.current = false;
@@ -86,109 +84,138 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     }
 
     // Spawn logic
-    if (frameCount.current % 100 === 0) {
-      const lane = Math.floor(Math.random() * 3);
+    if (frameCount.current % 80 === 0) {
       const type = Math.random() > 0.5 ? 'jump' : 'slide';
-      obstacles.current.push({ lane, y: -100, type });
+      obstacles.current.push({ lane: Math.floor(Math.random() * 3), z: 600, type });
+    }
+    if (frameCount.current % 30 === 0) {
+      coinsList.current.push({ lane: Math.floor(Math.random() * 3), z: 600 });
     }
 
-    if (frameCount.current % 40 === 0) {
-      coinsList.current.push({ lane: Math.floor(Math.random() * 3), y: -100 });
-    }
+    gameSpeed.current += 0.0005;
 
-    // Move everything
-    gameSpeed.current += 0.001;
-
-    obstacles.current.forEach(o => {
-      o.y += gameSpeed.current;
+    // Update Objects
+    const updateObject = (obj: { lane: number, z: number }) => {
+      obj.z -= gameSpeed.current * 5;
       
-      // Collision
-      const playerX = playerLane.current * TRACK_WIDTH + (TRACK_WIDTH - 40) / 2;
-      const obstacleX = o.lane * TRACK_WIDTH + (TRACK_WIDTH - 60) / 2;
-      
-      if (o.y > CANVAS_HEIGHT - 120 && o.y < CANVAS_HEIGHT - 60) {
-        if (o.lane === playerLane.current) {
-          if (o.type === 'jump' && playerYOffset.current < 40) setGameOver(true);
-          if (o.type === 'slide' && !isSliding.current) setGameOver(true);
+      // Collision at Z ~ horizon perspective offset
+      if (obj.z > 10 && obj.z < 35) {
+        if (obj.lane === playerLane.current) {
+          if ('type' in obj) {
+            const obs = obj as any;
+            if (obs.type === 'jump' && playerYOffset.current < 40) setGameOver(true);
+            if (obs.type === 'slide' && !isSliding.current) setGameOver(true);
+          } else {
+            setCoins(c => c + 1);
+            obj.z = -100; // Collect
+          }
         }
       }
-    });
+    };
 
-    coinsList.current.forEach((c, idx) => {
-      c.y += gameSpeed.current;
-      if (c.lane === playerLane.current && c.y > CANVAS_HEIGHT - 120 && c.y < CANVAS_HEIGHT - 60) {
-        setCoins(prev => prev + 1);
-        coinsList.current.splice(idx, 1);
-      }
-    });
+    obstacles.current.forEach(updateObject);
+    coinsList.current.forEach(updateObject);
 
-    obstacles.current = obstacles.current.filter(o => o.y < CANVAS_HEIGHT + 100);
-    coinsList.current = coinsList.current.filter(c => c.y < CANVAS_HEIGHT + 100);
-
-  }, [gameOver]);
+    obstacles.current = obstacles.current.filter(o => o.z > -20);
+    coinsList.current = coinsList.current.filter(c => c.z > -20);
+  }, [gameOver, isSliding]);
 
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Tracks
+    // Background Sky
+    const grad = ctx.createLinearGradient(0, 0, 0, HORIZON);
+    grad.addColorStop(0, '#020617');
+    grad.addColorStop(1, '#1e1b4b');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
+
+    // Track
     ctx.fillStyle = '#111';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    
+    ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
+
+    // 3D Lanes and Road Lines
     ctx.strokeStyle = '#333';
-    ctx.setLineDash([20, 20]);
-    for (let i = 1; i < TRACK_COUNT; i++) {
+    ctx.lineWidth = 2;
+    for (let i = 0; i <= 3; i++) {
+      const xOffset = (i - 1.5) * 100;
       ctx.beginPath();
-      ctx.moveTo(i * TRACK_WIDTH, 0);
-      ctx.lineTo(i * TRACK_WIDTH, CANVAS_HEIGHT);
+      ctx.moveTo(CANVAS_WIDTH/2, HORIZON);
+      ctx.lineTo(CANVAS_WIDTH/2 + xOffset * 10, CANVAS_HEIGHT);
       ctx.stroke();
     }
-    ctx.setLineDash([]);
 
-    // Coins
-    ctx.fillStyle = '#FAC11D';
-    coinsList.current.forEach(c => {
-      const x = c.lane * TRACK_WIDTH + TRACK_WIDTH / 2;
+    // Road dashes
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    for (let i = 0; i < 20; i++) {
+      const z = i * 40 - roadOffset.current;
+      if (z < 0) continue;
+      const scale = FOV / (FOV + z);
+      const y = HORIZON + (CANVAS_HEIGHT - HORIZON) * scale;
       ctx.beginPath();
-      ctx.arc(x, c.y, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'white';
+      ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y);
       ctx.stroke();
-    });
+    }
 
-    // Obstacles
-    obstacles.current.forEach(o => {
-      const x = o.lane * TRACK_WIDTH + (TRACK_WIDTH - 80) / 2;
-      if (o.type === 'jump') {
-        ctx.fillStyle = '#FA1D64'; // Barrier to jump
-        ctx.fillRect(x, o.y, 80, 40);
+    const drawObject = (lane: number, z: number, color: string, type?: string) => {
+      const scale = FOV / (FOV + z);
+      const laneX = (lane - 1) * 100;
+      const x = CANVAS_WIDTH / 2 + laneX * scale;
+      const y = HORIZON + (CANVAS_HEIGHT - HORIZON) * scale;
+      
+      const size = 50 * scale;
+      ctx.fillStyle = color;
+      
+      if (!type) { // Coin
+        ctx.beginPath();
+        ctx.arc(x, y - 10 * scale, size/2, 0, Math.PI * 2);
+        ctx.fill();
         ctx.strokeStyle = 'white';
-        ctx.strokeRect(x, o.y, 80, 40);
+        ctx.stroke();
+      } else if (type === 'jump') {
+        ctx.fillRect(x - size, y - size, size * 2, size);
+        ctx.strokeStyle = 'white';
+        ctx.strokeRect(x - size, y - size, size * 2, size);
       } else {
-        ctx.fillStyle = '#2600CC'; // Barrier to slide under
-        ctx.fillRect(x, o.y, 80, 20);
-        ctx.fillRect(x, o.y, 10, 100);
-        ctx.fillRect(x + 70, o.y, 10, 100);
+        ctx.fillRect(x - size, y - size * 2, size * 2, size);
+        ctx.strokeRect(x - size, y - size * 2, size * 2, size);
       }
+    };
+
+    // Draw all objects sorted by depth
+    const allObjects = [
+      ...obstacles.current.map(o => ({...o, isObs: true})),
+      ...coinsList.current.map(c => ({...c, isObs: false}))
+    ].sort((a, b) => b.z - a.z);
+
+    allObjects.forEach(obj => {
+      drawObject(obj.lane, obj.z, obj.isObs ? (obj as any).type === 'jump' ? '#FA1D64' : '#2600CC' : '#FAC11D', (obj as any).type);
     });
 
     // Player
-    const px = playerLane.current * TRACK_WIDTH + (TRACK_WIDTH - 40) / 2;
-    const py = CANVAS_HEIGHT - 100 - playerYOffset.current;
+    const playerScale = 1.0;
+    const playerLaneX = (playerLane.current - 1) * 100;
+    const px = CANVAS_WIDTH / 2 + playerLaneX * (FOV / (FOV + 30));
+    const py = (HORIZON + (CANVAS_HEIGHT - HORIZON) * (FOV / (FOV + 30))) - playerYOffset.current;
     
     ctx.fillStyle = '#C41DFA';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#C41DFA';
+    const pWidth = 40;
+    const pHeight = isSliding.current ? 30 : 60;
     ctx.beginPath();
-    ctx.roundRect(px, py + (60 - playerHeight.current), 40, playerHeight.current, 10);
+    ctx.roundRect(px - pWidth/2, py - pHeight, pWidth, pHeight, 10);
     ctx.fill();
     ctx.strokeStyle = 'white';
-    ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
-    // Stats
+    // UI
     ctx.fillStyle = 'white';
     ctx.font = 'bold 20px Space Grotesk';
     ctx.fillText(`M: ${Math.floor(score / 10)}`, 20, 40);
-    ctx.fillText(`Coins: ${coins}`, 20, 70);
-  }, [score, coins]);
+    ctx.fillText(`COINS: ${coins}`, 20, 70);
+  }, [score, coins, isSliding]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
@@ -197,18 +224,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     gameLoopRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(gameLoopRef.current);
   }, [update, draw]);
-
-  // Controls
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') moveLane(-1);
-      if (e.key === 'ArrowRight') moveLane(1);
-      if (e.key === 'ArrowUp' || e.key === ' ') jump();
-      if (e.key === 'ArrowDown') slide();
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [gameOver]);
 
   // Swipe logic
   const touchStart = useRef({ x: 0, y: 0 });
@@ -227,6 +242,17 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     }
   };
 
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') moveLane(-1);
+      if (e.key === 'ArrowRight') moveLane(1);
+      if (e.key === 'ArrowUp' || e.key === ' ') jump();
+      if (e.key === 'ArrowDown') slide();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [gameOver]);
+
   useEffect(() => { if (gameOver) onGameOver(Math.floor(score / 10) + coins * 10); }, [gameOver, score, coins, onGameOver]);
 
   return (
@@ -235,26 +261,26 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <canvas ref={canvasRef} width={400} height={600} className="w-full h-auto max-h-[75vh] bg-zinc-900 shadow-2xl" />
+      <canvas ref={canvasRef} width={400} height={600} className="w-full h-auto max-h-[80vh] shadow-2xl" />
       
       {isMobile && !gameOver && (
-        <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-2">
+        <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-4">
           <div className="flex gap-4">
-            <Button size="icon" className="w-16 h-16 rounded-2xl bg-white/10" onClick={() => moveLane(-1)}><ArrowLeft /></Button>
-            <Button size="icon" className="w-16 h-16 rounded-2xl bg-primary" onClick={jump}><ArrowUp /></Button>
-            <Button size="icon" className="w-16 h-16 rounded-2xl bg-white/10" onClick={() => moveLane(1)}><ArrowRight /></Button>
+            <Button size="icon" className="w-14 h-14 rounded-xl bg-white/10" onClick={() => moveLane(-1)}><ArrowLeft /></Button>
+            <Button size="icon" className="w-14 h-14 rounded-xl bg-primary" onClick={jump}><ArrowUp /></Button>
+            <Button size="icon" className="w-14 h-14 rounded-xl bg-white/10" onClick={() => moveLane(1)}><ArrowRight /></Button>
           </div>
-          <Button className="w-48 h-12 rounded-full bg-secondary" onClick={slide}><ArrowDown className="mr-2"/> SLIDE</Button>
+          <Button className="w-40 h-10 rounded-full bg-secondary font-bold" onClick={slide}><ArrowDown className="mr-2 h-4 w-4"/> SLIDE</Button>
         </div>
       )}
 
       {gameOver && (
-        <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center p-4 text-center z-30">
-          <h2 className="text-6xl font-headline font-bold text-destructive mb-4 tracking-tighter">BUSTED</h2>
-          <p className="text-3xl text-white font-headline font-bold mb-2">Distance: {Math.floor(score / 10)} m</p>
-          <p className="text-xl text-primary font-bold mb-8">Coins: {coins}</p>
-          <Button onClick={initGame} size="lg" className="rounded-full px-12 py-8 text-2xl font-bold">
-            <RotateCcw className="mr-3 h-8 w-8" /> PLAY AGAIN
+        <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center p-4 text-center z-30">
+          <h2 className="text-7xl font-headline font-bold text-destructive mb-4 tracking-tighter italic">BUSTED</h2>
+          <p className="text-3xl text-white font-headline font-bold mb-2">DISTANCE: {Math.floor(score / 10)} M</p>
+          <p className="text-xl text-primary font-bold mb-10">TOTAL COINS: {coins}</p>
+          <Button onClick={initGame} size="lg" className="rounded-full px-12 py-8 text-2xl font-bold bg-primary">
+            <RotateCcw className="mr-3 h-8 w-8" /> REPLAY
           </Button>
         </div>
       )}
