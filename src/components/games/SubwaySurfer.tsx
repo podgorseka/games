@@ -14,9 +14,9 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
   const CANVAS_WIDTH = 400;
   const CANVAS_HEIGHT = 600;
-  const HORIZON = CANVAS_HEIGHT * 0.38;
+  const HORIZON = CANVAS_HEIGHT * 0.35; // Caméra plus haute pour une meilleure vue
   const FOV = 110;
-  const TRAIN_HEIGHT = 140; // Hauteur massive des trains
+  const TRAIN_HEIGHT = 220; // Trains beaucoup plus hauts (environ 3x le perso)
 
   const playerLane = useRef(1);
   const currentX = useRef(0);
@@ -53,7 +53,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const jump = () => {
     if (gameOver || isJumping.current) return;
     isJumping.current = true;
-    jumpVelocity.current = 18;
+    jumpVelocity.current = 20;
     isSliding.current = false;
   };
 
@@ -69,20 +69,17 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     frameCount.current++;
     setScore(s => s + 1);
 
-    // Mouvement fluide entre les voies
     const targetX = (playerLane.current - 1) * 140;
     currentX.current += (targetX - currentX.current) * 0.18;
 
-    // Physique du saut
     playerYOffset.current += jumpVelocity.current;
     jumpVelocity.current -= 0.85;
 
-    // Détection de présence sur le toit
     let onTrain = false;
     obstacles.current.forEach(obs => {
       if (obs.type === 'train' || obs.type === 'ramp') {
-        if (playerLane.current === obs.lane && obs.z < 100 && (obs.z + obs.length) > 30) {
-           if (playerYOffset.current >= TRAIN_HEIGHT - 30) {
+        if (playerLane.current === obs.lane && obs.z < 120 && (obs.z + obs.length) > 30) {
+           if (playerYOffset.current >= TRAIN_HEIGHT - 40) {
              onTrain = true;
            }
         }
@@ -96,35 +93,31 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
       isJumping.current = false;
     }
 
-    // Génération d'obstacles (Trains massifs)
     if (frameCount.current % 150 === 0) {
       const lane = Math.floor(Math.random() * 3);
       const isClimbable = Math.random() > 0.65;
       obstacles.current.push({ 
         lane, 
         z: 3500, 
-        length: isClimbable ? 600 : 2000 + Math.random() * 1000, 
+        length: isClimbable ? 800 : 2500 + Math.random() * 1000, 
         type: isClimbable ? 'ramp' : 'train',
         climbable: isClimbable,
         color: isClimbable ? '#2563eb' : '#0f172a'
       });
     } else if (frameCount.current % 200 === 0) {
-      obstacles.current.push({ lane: Math.floor(Math.random() * 3), z: 3500, length: 100, type: 'barrier', climbable: false, color: '#ef4444' });
+      obstacles.current.push({ lane: Math.floor(Math.random() * 3), z: 3500, length: 120, type: 'barrier', climbable: false, color: '#ef4444' });
     }
 
     if (frameCount.current % 90 === 0) coinsList.current.push({ lane: Math.floor(Math.random() * 3), z: 3500 });
 
-    gameSpeed.current += 0.0005;
+    gameSpeed.current += 0.0004;
 
-    // Collision et logique de rampe
     obstacles.current.forEach(obj => {
       obj.z -= gameSpeed.current * 7.5;
-      if (obj.lane === playerLane.current && obj.z < 90 && (obj.z + obj.length) > 40) {
+      if (obj.lane === playerLane.current && obj.z < 100 && (obj.z + obj.length) > 40) {
         if (obj.type === 'ramp' && playerYOffset.current < TRAIN_HEIGHT) {
-           // On monte progressivement sur le toit
-           playerYOffset.current += (TRAIN_HEIGHT - playerYOffset.current) * 0.4;
-        } else if (obj.type === 'train' && playerYOffset.current < TRAIN_HEIGHT - 40) {
-           // Collision frontale si on n'est pas déjà sur le toit
+           playerYOffset.current += (TRAIN_HEIGHT - playerYOffset.current) * 0.45;
+        } else if (obj.type === 'train' && playerYOffset.current < TRAIN_HEIGHT - 50) {
            setGameOver(true);
         } else if (obj.type === 'barrier' && !isSliding.current && playerYOffset.current < 70) {
            setGameOver(true);
@@ -135,7 +128,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     coinsList.current.forEach(c => {
       c.z -= gameSpeed.current * 7.5;
       if (c.lane === playerLane.current && c.z > 20 && c.z < 130) {
-        if (Math.abs(playerYOffset.current - 0) < 100 || Math.abs(playerYOffset.current - TRAIN_HEIGHT) < 100) {
+        if (Math.abs(playerYOffset.current - 0) < 120 || Math.abs(playerYOffset.current - TRAIN_HEIGHT) < 120) {
            setCoins(prev => prev + 1);
            c.z = -5000;
         }
@@ -149,25 +142,21 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const drawCharacter = (ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) => {
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(scale * 0.75, scale * 0.75); // Bonhomme plus petit
+    ctx.scale(scale * 0.7, scale * 0.7);
 
-    const bodyH = isSliding.current ? 40 : 80;
+    const bodyH = isSliding.current ? 45 : 85;
     
-    // Ombre du personnage
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath(); ctx.ellipse(0, 0, 35, 15, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 5, 35, 15, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Corps articulé
     ctx.fillStyle = '#C41DFA';
     ctx.beginPath(); ctx.roundRect(-22, -bodyH - 35, 44, bodyH, 20); ctx.fill();
     
-    // Tête
     ctx.fillStyle = '#ffdbac';
-    ctx.beginPath(); ctx.arc(0, -bodyH - 60, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -bodyH - 60, 22, 0, Math.PI * 2); ctx.fill();
     
-    // Détail Cap/Cheveux
     ctx.fillStyle = '#2600CC';
-    ctx.beginPath(); ctx.roundRect(-24, -bodyH - 80, 48, 15, 8); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-26, -bodyH - 82, 52, 18, 8); ctx.fill();
 
     ctx.restore();
   };
@@ -175,28 +164,24 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Ciel nocturne profond
     const sky = ctx.createLinearGradient(0, 0, 0, HORIZON);
     sky.addColorStop(0, '#000000'); 
     sky.addColorStop(1, '#0f172a');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
 
-    // Sol des voies
     ctx.fillStyle = '#020617';
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
 
-    // Rails convergents
     ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3;
     for (let i = 0; i <= 3; i++) {
       const laneX = (i - 1.5) * 165;
       ctx.beginPath();
       ctx.moveTo(CANVAS_WIDTH/2, HORIZON);
-      ctx.lineTo(CANVAS_WIDTH/2 + laneX * 30, CANVAS_HEIGHT);
+      ctx.lineTo(CANVAS_WIDTH/2 + laneX * 35, CANVAS_HEIGHT);
       ctx.stroke();
     }
 
-    // Objets du monde (Trains et pièces) triés par Z
     const all = [
       ...obstacles.current.map(o => ({...o, isObs: true})),
       ...coinsList.current.map(c => ({...c, isObs: false, length: 0, type: 'coin' as const, color: '#FAC11D', climbable: false}))
@@ -207,8 +192,8 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
       const scaleE = FOV / (FOV + (obj.z + (obj.length || 0)));
       const laneX = (obj.lane - 1) * 165;
       
-      const xS = CANVAS_WIDTH / 2 + laneX * scaleS * 5.2;
-      const xE = CANVAS_WIDTH / 2 + laneX * scaleE * 5.2;
+      const xS = CANVAS_WIDTH / 2 + laneX * scaleS * 5.5;
+      const xE = CANVAS_WIDTH / 2 + laneX * scaleE * 5.5;
       const yS = HORIZON + (CANVAS_HEIGHT - HORIZON) * scaleS;
       const yE = HORIZON + (CANVAS_HEIGHT - HORIZON) * scaleE;
 
@@ -232,16 +217,14 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
         ctx.strokeStyle = 'rgba(255,255,255,0.1)';
         ctx.stroke();
         
-        // Face avant (Si visible)
-        if (obj.z > 0 && obj.z < 2800) {
+        // Face avant (Si visible devant la caméra)
+        if (obj.z > 50 && obj.z < 2500) {
            ctx.fillStyle = '#0a0a0a';
            ctx.fillRect(xS - wS/2, yS - hS, wS, hS);
-           // Vitre avant rétro-éclairée
-           ctx.fillStyle = 'rgba(0, 255, 255, 0.2)';
-           ctx.fillRect(xS - wS/2.5, yS - hS * 0.9, wS * 0.8, hS * 0.45);
+           ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
+           ctx.fillRect(xS - wS/2.5, yS - hS * 0.9, wS * 0.8, hS * 0.4);
         }
 
-        // Texture Rampe
         if (obj.type === 'ramp') {
            ctx.fillStyle = 'rgba(255,255,255,0.4)';
            ctx.beginPath();
@@ -263,15 +246,13 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
       }
     });
 
-    // Personnage (Caméra de suivi)
-    const pScale = FOV / (FOV + 80);
+    const pScale = FOV / (FOV + 100);
     const px = CANVAS_WIDTH / 2 + currentX.current * pScale * 2.2;
     const py = (HORIZON + (CANVAS_HEIGHT - HORIZON) * pScale) - playerYOffset.current * pScale;
     drawCharacter(ctx, px, py, pScale * 2.8);
 
-  }, [score, coins, isSliding]);
+  }, [score, coins, isSliding, HORIZON, TRAIN_HEIGHT]);
 
-  // Swipe handling
   const touchStart = useRef({ x: 0, y: 0 });
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
