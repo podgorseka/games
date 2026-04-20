@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -53,7 +54,6 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
       playerVelocity.current = 0;
     }
 
-    // Generation logic
     if (obstacles.current.length === 0 || obstacles.current[obstacles.current.length - 1].x < 500) {
       if (Math.random() < 0.03) {
         obstacles.current.push({ 
@@ -64,7 +64,6 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
         });
       }
       
-      // Powerup arc-en-ciel - rare (0.3%)
       if (Math.random() < 0.003) {
         powerups.current.push({
           x: 900,
@@ -108,18 +107,56 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, 800, 500);
 
-    // Background
-    const gradient = ctx.createLinearGradient(0, 0, 0, 500);
-    gradient.addColorStop(0, '#FDFCFE');
-    gradient.addColorStop(1, '#F0E6F5');
-    ctx.fillStyle = gradient;
+    // Dark Synthwave Sky
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, 500);
+    skyGrad.addColorStop(0, '#020617');
+    skyGrad.addColorStop(0.6, '#1e1b4b');
+    skyGrad.addColorStop(1, '#312e81');
+    ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, 800, 500);
 
-    // Ground
-    ctx.fillStyle = '#2600CC';
-    ctx.fillRect(0, groundY, 800, 100);
+    // Grid Perspective
+    ctx.strokeStyle = '#c084fc44';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 20; i++) {
+      const y = groundY + i * 15;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(800, y);
+      ctx.stroke();
+    }
+    for (let i = 0; i < 20; i++) {
+      const x = (i * 80) - ((Date.now() / 20) % 80);
+      ctx.beginPath();
+      ctx.moveTo(x, groundY);
+      ctx.lineTo(x, 500);
+      ctx.stroke();
+    }
 
-    // Player (avec visage)
+    // Mountains Silhouette
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(150, 250);
+    ctx.lineTo(300, groundY);
+    ctx.lineTo(450, 200);
+    ctx.lineTo(600, groundY);
+    ctx.lineTo(750, 280);
+    ctx.lineTo(800, groundY);
+    ctx.fill();
+
+    // Ground Line (Neon)
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#C41DFA';
+    ctx.strokeStyle = '#C41DFA';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(800, groundY);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Player
     const px = 100;
     const py = playerY.current;
     const size = 40;
@@ -140,26 +177,28 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
 
     // Face
     ctx.fillStyle = 'white';
-    ctx.fillRect(px + 22, py + 10, 6, 6); // Oeil droit
-    ctx.fillRect(px + 10, py + 10, 6, 6); // Oeil gauche
-    ctx.fillRect(px + 12, py + 24, 16, 4); // Bouche
+    ctx.fillRect(px + 22, py + 10, 6, 6);
+    ctx.fillRect(px + 10, py + 10, 6, 6);
+    ctx.fillRect(px + 12, py + 24, 16, 4);
     ctx.restore();
 
-    // Powerups (Rainbow Cubes)
+    // Powerups
     powerups.current.forEach(p => {
       if (p.active) {
         const time = Date.now() / 200;
         ctx.fillStyle = `hsl(${time % 360}, 80%, 60%)`;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'white';
         ctx.fillRect(p.x, p.y, p.w, p.h);
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(p.x, p.y, p.w, p.h);
+        ctx.shadowBlur = 0;
       }
     });
 
     // Obstacles
     obstacles.current.forEach(o => {
       ctx.fillStyle = '#FA1D64';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#FA1D64';
       if (o.type === 'spike') {
         ctx.beginPath();
         ctx.moveTo(o.x, groundY);
@@ -167,13 +206,10 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
         ctx.lineTo(o.x + o.w, groundY);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = 'white';
-        ctx.stroke();
       } else {
         ctx.fillRect(o.x, groundY - o.h, o.w, o.h);
-        ctx.strokeStyle = 'white';
-        ctx.strokeRect(o.x, groundY - o.h, o.w, o.h);
       }
+      ctx.shadowBlur = 0;
     });
   }, [isInvincible]);
 
@@ -202,15 +238,15 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center cursor-pointer overflow-hidden touch-none" onMouseDown={jump} onTouchStart={jump}>
       <div className="absolute top-8 flex items-center gap-4 z-20">
-        <div className="text-4xl font-headline font-bold text-primary">Score: {score}</div>
-        {isInvincible && <div className="bg-primary text-white px-4 py-1 rounded-full animate-pulse flex items-center gap-2 font-bold"><Zap className="h-4 w-4 fill-current" /> INVINCIBLE</div>}
+        <div className="text-4xl font-headline font-bold text-primary drop-shadow-md">Score: {score}</div>
+        {isInvincible && <div className="bg-primary text-white px-4 py-1 rounded-full animate-pulse flex items-center gap-2 font-bold shadow-lg"><Zap className="h-4 w-4 fill-current" /> INVINCIBLE</div>}
       </div>
-      <canvas ref={canvasRef} width={800} height={500} className="w-full h-auto max-h-[75vh] border-4 border-primary rounded-3xl bg-white shadow-2xl" />
+      <canvas ref={canvasRef} width={800} height={500} className="w-full h-auto max-h-[75vh] border-4 border-primary rounded-3xl bg-black shadow-2xl" />
       {gameOver && (
         <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 z-30 cursor-default backdrop-blur-sm">
           <h2 className="text-6xl font-headline font-bold text-destructive mb-4 tracking-tighter">CRASHED!</h2>
-          <p className="text-3xl font-headline font-bold mb-8">Final Score: {score}</p>
-          <Button onClick={initGame} size="lg" className="rounded-full px-12 py-8 text-2xl font-bold"><RotateCcw className="mr-3 h-8 w-8" /> Restart</Button>
+          <p className="text-3xl font-headline font-bold mb-8 text-foreground">Final Score: {score}</p>
+          <Button onClick={initGame} size="lg" className="rounded-full px-12 py-8 text-2xl font-bold shadow-2xl hover:scale-105 transition-transform"><RotateCcw className="mr-3 h-8 w-8" /> Restart</Button>
         </div>
       )}
     </div>
