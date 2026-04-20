@@ -11,7 +11,8 @@ import {
   Grid3X3, 
   ArrowUpRight,
   X,
-  Keyboard
+  Keyboard,
+  User as UserIcon
 } from 'lucide-react';
 import GameCard from '@/components/GameCard';
 import Leaderboard from '@/components/Leaderboard';
@@ -21,8 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getPlayerName, savePlayerName, saveScore } from '@/lib/storage';
-import { AuthButton } from '@/components/AuthButton';
-import { useUser } from '@/firebase';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 // Game components
 import Snake from '@/components/games/Snake';
@@ -43,24 +43,18 @@ const GAMES = [
 
 export default function Home() {
   const isMobile = useIsMobile();
-  const { user } = useUser();
   const [playerName, setPlayerName] = useState('');
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user && user.displayName) {
-      setPlayerName(user.displayName);
-      savePlayerName(user.displayName);
-    } else {
-      setPlayerName(getPlayerName());
-    }
-  }, [user]);
+    setPlayerName(getPlayerName());
+  }, []);
 
   const handlePlayClick = (gameId: string) => {
     setSelectedGameId(gameId);
-    if (!playerName && !user) {
+    if (!playerName) {
       setShowNameDialog(true);
     } else {
       setActiveGameId(gameId);
@@ -72,7 +66,9 @@ export default function Home() {
     if (playerName.trim()) {
       savePlayerName(playerName);
       setShowNameDialog(false);
-      setActiveGameId(selectedGameId);
+      if (selectedGameId) {
+        setActiveGameId(selectedGameId);
+      }
     }
   };
 
@@ -80,7 +76,7 @@ export default function Home() {
     if (activeGameId) {
       const game = GAMES.find(g => g.id === activeGameId);
       if (game) {
-        saveScore(playerName || user?.displayName || 'Anonyme', activeGameId, game.name, score);
+        saveScore(playerName || 'Anonyme', activeGameId, game.name, score);
       }
     }
   };
@@ -110,10 +106,34 @@ export default function Home() {
           </div>
           
           <div className="flex items-center gap-4">
-            <AuthButton />
+            {playerName && (
+              <Button 
+                variant="ghost" 
+                className="flex items-center gap-2 rounded-full"
+                onClick={() => setShowNameDialog(true)}
+              >
+                <Avatar className="h-8 w-8 border border-primary">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                    {playerName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden sm:inline font-medium text-sm">{playerName}</span>
+              </Button>
+            )}
+            {!playerName && (
+               <Button 
+                 variant="outline" 
+                 size="sm" 
+                 className="rounded-full font-bold"
+                 onClick={() => setShowNameDialog(true)}
+               >
+                 <UserIcon className="h-4 w-4 mr-2" />
+                 Set Name
+               </Button>
+            )}
             <Button 
               variant="outline" 
-              className="hidden sm:flex rounded-full border-primary text-primary hover:bg-primary hover:text-white transition-all font-bold"
+              className="hidden sm:flex rounded-full border-primary text-primary hover:bg-primary hover:text-white transition-all font-bold h-9"
               asChild
             >
               <a href="https://adrienn.fr" target="_blank" rel="noopener noreferrer">
@@ -132,7 +152,7 @@ export default function Home() {
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Experience 6 addictive mini-games designed for both desktop and mobile. 
-            Connect to save your progress!
+            All scores are saved locally on your device!
           </p>
         </section>
 
@@ -161,7 +181,7 @@ export default function Home() {
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left">
             <h3 className="text-xl font-headline font-bold mb-2">GAME ZONE</h3>
-            <p className="text-sm text-muted-foreground">© 2024 Built with precision and style.</p>
+            <p className="text-sm text-muted-foreground">© 2024 Built with precision and style. 100% Offline.</p>
           </div>
           <div className="flex gap-4">
             <Button variant="ghost" size="sm" asChild>
@@ -195,7 +215,7 @@ export default function Home() {
                 autoFocus
               />
             </div>
-            <Button type="submit" className="w-full h-12 rounded-xl text-lg font-bold">Start Playing</Button>
+            <Button type="submit" className="w-full h-12 rounded-xl text-lg font-bold">Save & Play</Button>
           </form>
         </DialogContent>
       </Dialog>
