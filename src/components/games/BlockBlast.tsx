@@ -78,14 +78,40 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
     return true;
   };
 
+  const findNearestValidPosition = (piece: any, targetRow: number, targetCol: number) => {
+    let bestPos = null;
+    let minDistance = Infinity;
+    const searchRange = 2; // Rayon de recherche pour l'aimantation
+
+    for (let r = targetRow - searchRange; r <= targetRow + searchRange; r++) {
+      for (let c = targetCol - searchRange; c <= targetCol + searchRange; c++) {
+        if (canPlace(piece.shape, r, c, grid)) {
+          const dist = Math.sqrt(Math.pow(r - targetRow, 2) + Math.pow(c - targetCol, 2));
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestPos = { r, c };
+          }
+        }
+      }
+    }
+    return bestPos;
+  };
+
   const placePiece = (pieceId: number, startRow: number, startCol: number) => {
     const piece = pieces.find(p => p.id === pieceId);
-    if (!piece || !canPlace(piece.shape, startRow, startCol, grid)) return false;
+    if (!piece) return false;
+
+    // Chercher la position la plus proche si la position actuelle est invalide
+    const bestPos = findNearestValidPosition(piece, startRow, startCol);
+    if (!bestPos) return false;
+
+    const finalRow = bestPos.r;
+    const finalCol = bestPos.c;
 
     const newGrid = grid.map(row => [...row]);
     piece.shape.forEach((row, r) => {
       row.forEach((val, c) => {
-        if (val) newGrid[startRow + r][startCol + c] = piece.color;
+        if (val) newGrid[finalRow + r][finalCol + c] = piece.color;
       });
     });
 
@@ -151,6 +177,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       const shapeRows = draggingPiece.shape.length;
       const shapeCols = draggingPiece.shape[0].length;
       
+      // On centre la pièce sur le doigt
       const startRow = hoveredRow - Math.floor(shapeRows / 2);
       const startCol = hoveredCol - Math.floor(shapeCols / 2);
       
@@ -162,7 +189,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
   if (loading) return (
     <div className="flex flex-col items-center justify-center gap-4 h-full">
       <Loader2 className="animate-spin text-primary h-12 w-12" />
-      <p className="font-headline font-bold">AI is crafting your puzzle...</p>
+      <p className="font-headline font-bold">L'IA prépare votre grille...</p>
     </div>
   );
 
@@ -217,11 +244,11 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       </div>
       
       <p className="text-muted-foreground text-sm font-medium bg-muted/50 px-4 py-2 rounded-full">
-        Faites glisser les blocs pour remplir les lignes !
+        Faites glisser les blocs pour remplir les lignes ! (Aimantation automatique incluse)
       </p>
 
       <Button variant="ghost" size="sm" onClick={fetchLevel} className="mt-2">
-        <RotateCcw className="mr-2 h-4 w-4" /> Reset Level
+        <RotateCcw className="mr-2 h-4 w-4" /> Réinitialiser
       </Button>
     </div>
   );
