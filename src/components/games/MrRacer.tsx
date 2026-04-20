@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Zap } from 'lucide-react';
 
 export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -14,32 +14,32 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const CANVAS_WIDTH = 400;
   const CANVAS_HEIGHT = 600;
   const HORIZON = CANVAS_HEIGHT * 0.45;
-  const FOV = 120;
+  const FOV = 100;
   
   const playerX = useRef(0);
   const targetX = useRef(0);
   const enemies = useRef<{ x: number, z: number, speed: number, color: string, type: string, seed: number }[]>([]);
   const roadOffset = useRef(0);
   const keys = useRef<{ [key: string]: boolean }>({});
-  const gameSpeed = useRef(0.06);
+  const gameSpeed = useRef(0.08);
 
   const initGame = useCallback(() => {
     playerX.current = 0;
     targetX.current = 0;
     enemies.current = [];
     roadOffset.current = 0;
-    gameSpeed.current = 0.06;
+    gameSpeed.current = 0.08;
     setScore(0);
     setGameOver(false);
   }, []);
 
   const spawnEnemy = useCallback(() => {
-    const laneX = (Math.floor(Math.random() * 3) - 1) * 85;
+    const laneX = (Math.floor(Math.random() * 3) - 1) * 90;
     const colors = ['#1e40af', '#dc2626', '#059669', '#d97706', '#4b5563'];
     enemies.current.push({
       x: laneX,
-      z: 1500,
-      speed: 1.0 + Math.random() * 3.0,
+      z: 2000,
+      speed: 1.5 + Math.random() * 4.0,
       color: colors[Math.floor(Math.random() * colors.length)],
       type: Math.random() > 0.8 ? 'truck' : 'car',
       seed: Math.random()
@@ -49,24 +49,24 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const update = useCallback(() => {
     if (gameOver) return;
 
-    if (keys.current['ArrowLeft'] || keys.current['a']) targetX.current -= 6;
-    if (keys.current['ArrowRight'] || keys.current['d']) targetX.current += 6;
+    if (keys.current['ArrowLeft'] || keys.current['a']) targetX.current -= 8;
+    if (keys.current['ArrowRight'] || keys.current['d']) targetX.current += 8;
 
-    playerX.current += (targetX.current - playerX.current) * 0.1;
-    targetX.current = Math.max(-140, Math.min(140, targetX.current));
-    playerX.current = Math.max(-140, Math.min(140, playerX.current));
+    playerX.current += (targetX.current - playerX.current) * 0.15;
+    targetX.current = Math.max(-150, Math.min(150, targetX.current));
+    playerX.current = Math.max(-150, Math.min(150, playerX.current));
 
-    roadOffset.current = (roadOffset.current + gameSpeed.current * 40) % 100;
-    gameSpeed.current += 0.00003;
+    roadOffset.current = (roadOffset.current + gameSpeed.current * 50) % 100;
+    gameSpeed.current += 0.00005;
     setScore(s => s + 1);
 
-    if (Math.random() < 0.03) spawnEnemy();
+    if (Math.random() < 0.04) spawnEnemy();
     
     enemies.current.forEach(e => {
-      e.z -= (gameSpeed.current * 120) + e.speed;
-      if (e.z > -10 && e.z < 45) {
+      e.z -= (gameSpeed.current * 150) + e.speed;
+      if (e.z > -10 && e.z < 50) {
         const dist = Math.abs(e.x - playerX.current);
-        const hitWidth = e.type === 'truck' ? 70 : 60;
+        const hitWidth = e.type === 'truck' ? 80 : 70;
         if (dist < hitWidth) setGameOver(true);
       }
     });
@@ -76,57 +76,63 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
   const drawCar = (ctx: CanvasRenderingContext2D, x: number, z: number, color: string, isPlayer: boolean = false, type: string = 'car') => {
     const scale = FOV / (FOV + z);
-    const screenX = CANVAS_WIDTH / 2 + (x - (isPlayer ? 0 : playerX.current)) * scale * 3.2;
+    const screenX = CANVAS_WIDTH / 2 + (x - (isPlayer ? 0 : playerX.current)) * scale * 3.5;
     const screenY = HORIZON + (CANVAS_HEIGHT - HORIZON) * scale;
     
-    if (screenY < HORIZON || scale < 0.04) return;
+    if (screenY < HORIZON || scale < 0.02) return;
 
-    const carW = (type === 'truck' ? 120 : 100) * scale;
-    const carH = (type === 'truck' ? 90 : 60) * scale;
+    const carW = (type === 'truck' ? 140 : 110) * scale;
+    const carH = (type === 'truck' ? 100 : 70) * scale;
 
     ctx.save();
     ctx.translate(screenX, screenY);
     
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    // 3D Shadow with soft edges
+    const shadowGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, carW);
+    shadowGrad.addColorStop(0, 'rgba(0,0,0,0.5)');
+    shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = shadowGrad;
     ctx.beginPath();
-    ctx.ellipse(0, 0, carW * 0.8, carH * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, carW * 0.9, carH * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body
-    const grad = ctx.createLinearGradient(0, -carH, 0, 0);
-    grad.addColorStop(0, color);
-    grad.addColorStop(0.6, color);
-    grad.addColorStop(1, '#000');
-    ctx.fillStyle = grad;
-    
+    // Body with 3D layers
+    ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.roundRect(-carW/2, -carH, carW, carH, 8 * scale);
+    ctx.roundRect(-carW/2, -carH, carW, carH, 10 * scale);
     ctx.fill();
 
-    // Reflection
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.fillRect(-carW/2.2, -carH * 0.9, carW * 0.9, carH * 0.1);
+    // Highlights for metallic look
+    const highlight = ctx.createLinearGradient(-carW/2, -carH, carW/2, -carH);
+    highlight.addColorStop(0, 'rgba(255,255,255,0)');
+    highlight.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+    highlight.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = highlight;
+    ctx.fillRect(-carW/2, -carH, carW, carH * 0.4);
 
-    // Windows
-    ctx.fillStyle = 'rgba(5,5,20,0.9)';
-    ctx.fillRect(-carW/2.5, -carH * 0.8, (carW/2.5)*2, carH * 0.3);
+    // Windows with sky reflection
+    ctx.fillStyle = 'rgba(10, 20, 40, 0.95)';
+    ctx.beginPath();
+    ctx.roundRect(-carW/2.5, -carH * 0.85, (carW/2.5)*2, carH * 0.4, 4 * scale);
+    ctx.fill();
 
-    // Lights
+    // Lights and Halos
     if (isPlayer) {
       // Taillights
-      ctx.fillStyle = '#ff0000';
-      ctx.shadowBlur = 15 * scale;
+      ctx.fillStyle = '#ff1111';
+      ctx.shadowBlur = 20 * scale;
       ctx.shadowColor = '#ff0000';
-      ctx.fillRect(-carW/2 + 2, -carH * 0.45, 12 * scale, 8 * scale);
-      ctx.fillRect(carW/2 - 14, -carH * 0.45, 12 * scale, 8 * scale);
+      ctx.fillRect(-carW/2 + 5, -carH * 0.5, 15 * scale, 10 * scale);
+      ctx.fillRect(carW/2 - 20, -carH * 0.5, 15 * scale, 10 * scale);
     } else {
-      // Headlights
-      ctx.fillStyle = '#fff9e6';
-      ctx.shadowBlur = 12 * scale;
-      ctx.shadowColor = '#fff9e6';
-      ctx.fillRect(-carW/2 + 2, -carH * 0.98, 18 * scale, 15 * scale);
-      ctx.fillRect(carW/2 - 20, -carH * 0.98, 18 * scale, 15 * scale);
+      // Headlights with glow
+      ctx.fillStyle = '#fffdf0';
+      ctx.shadowBlur = 25 * scale;
+      ctx.shadowColor = '#fffdf0';
+      ctx.beginPath();
+      ctx.arc(-carW/2 + 10, -carH * 0.9, 10 * scale, 0, Math.PI*2);
+      ctx.arc(carW/2 - 10, -carH * 0.9, 10 * scale, 0, Math.PI*2);
+      ctx.fill();
     }
 
     ctx.restore();
@@ -138,67 +144,52 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     // Cinematic Sky
     const skyGrad = ctx.createLinearGradient(0, 0, 0, HORIZON);
     skyGrad.addColorStop(0, '#020617');
-    skyGrad.addColorStop(0.8, '#1e293b');
-    skyGrad.addColorStop(1, '#334155');
+    skyGrad.addColorStop(0.8, '#0f172a');
+    skyGrad.addColorStop(1, '#1e293b');
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
 
-    // Horizon Glow
-    const horizonGrad = ctx.createLinearGradient(0, HORIZON - 10, 0, HORIZON + 10);
-    horizonGrad.addColorStop(0, 'rgba(51,65,85,0)');
-    horizonGrad.addColorStop(0.5, 'rgba(196,29,250,0.2)');
-    horizonGrad.addColorStop(1, 'rgba(15,23,42,0)');
-    ctx.fillStyle = horizonGrad;
-    ctx.fillRect(0, HORIZON - 10, CANVAS_WIDTH, 20);
-
     // Realistic Asphalt
-    ctx.fillStyle = '#111827';
+    const roadGrad = ctx.createLinearGradient(0, HORIZON, 0, CANVAS_HEIGHT);
+    roadGrad.addColorStop(0, '#0f172a');
+    roadGrad.addColorStop(1, '#020617');
+    ctx.fillStyle = roadGrad;
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
 
-    // Subtle Road Grain
-    ctx.fillStyle = 'rgba(255,255,255,0.02)';
-    for(let i=0; i<100; i++) {
-      ctx.fillRect(Math.random()*CANVAS_WIDTH, HORIZON + Math.random()*(CANVAS_HEIGHT-HORIZON), 1, 1);
-    }
-
-    // Lane Markers
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-    ctx.lineWidth = 1;
+    // Lane Markers with motion blur simulation
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 2;
     for (let i = -1.5; i <= 1.5; i++) {
-       const laneX = i * 120;
+       const laneX = i * 130;
        ctx.beginPath();
-       ctx.moveTo(CANVAS_WIDTH/2 - (playerX.current * (FOV/(FOV+1200))), HORIZON);
-       ctx.lineTo(CANVAS_WIDTH/2 + (laneX * 3.8) - playerX.current * 3.8, CANVAS_HEIGHT);
+       ctx.moveTo(CANVAS_WIDTH/2, HORIZON);
+       ctx.lineTo(CANVAS_WIDTH/2 + (laneX * 4) - playerX.current * 4, CANVAS_HEIGHT);
        ctx.stroke();
     }
 
-    // Moving Dashboard Markers
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 20; i++) {
-      const z = i * 70 - roadOffset.current;
+    // Moving Road Dashes
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    for (let i = 0; i < 25; i++) {
+      const z = i * 80 - roadOffset.current;
       if (z < 0) continue;
       const scale = FOV / (FOV + z);
       const y = HORIZON + (CANVAS_HEIGHT - HORIZON) * scale;
-      const dashW = 180 * scale;
-      const dashLen = 15 * scale;
+      const dashW = 10 * scale;
+      const dashLen = 40 * scale;
       
-      ctx.beginPath();
-      // Left
-      ctx.moveTo(CANVAS_WIDTH/2 - dashW - (playerX.current * scale * 3.2), y);
-      ctx.lineTo(CANVAS_WIDTH/2 - (dashW - dashLen) - (playerX.current * scale * 3.2), y);
-      // Right
-      ctx.moveTo(CANVAS_WIDTH/2 + dashW - (playerX.current * scale * 3.2), y);
-      ctx.lineTo(CANVAS_WIDTH/2 + (dashW - dashLen) - (playerX.current * scale * 3.2), y);
-      ctx.stroke();
+      const xL = CANVAS_WIDTH/2 - (65 * scale * 4) - (playerX.current * scale * 3.5);
+      const xR = CANVAS_WIDTH/2 + (65 * scale * 4) - (playerX.current * scale * 3.5);
+      
+      ctx.fillRect(xL - dashW/2, y, dashW, dashLen);
+      ctx.fillRect(xR - dashW/2, y, dashW, dashLen);
     }
 
-    // Sort and draw entities
+    // Draw Entities
     const sortedEnemies = [...enemies.current].sort((a, b) => b.z - a.z);
     sortedEnemies.forEach(e => drawCar(ctx, e.x, e.z, e.color, false, e.type));
     
     // Player
-    drawCar(ctx, playerX.current, 30, '#C41DFA', true);
+    drawCar(ctx, playerX.current, 40, '#C41DFA', true);
 
   }, [score, roadOffset.current]);
 
@@ -240,20 +231,19 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
         onPointerLeave={() => handlePointer(0, false)}
     >
       <div className="absolute top-12 left-12 flex flex-col items-start z-20 pointer-events-none">
-        <span className="text-xs uppercase tracking-[0.5em] font-black text-primary/60 mb-2">High Speed HUD</span>
-        <div className="text-8xl font-headline font-bold text-white tracking-tighter italic shadow-2xl">
+        <div className="text-8xl font-headline font-bold text-white tracking-tighter italic drop-shadow-2xl">
           {Math.floor(score / 10)} <span className="text-2xl text-primary">KM</span>
         </div>
       </div>
 
-      <canvas ref={canvasRef} width={400} height={600} className="w-full h-auto max-h-[95vh] shadow-2xl" />
+      <canvas ref={canvasRef} width={400} height={600} className="w-full h-auto max-h-[98vh] shadow-2xl" />
 
       {gameOver && (
-        <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center p-8 text-center z-30 backdrop-blur-3xl">
-          <h2 className="text-9xl font-headline font-bold text-destructive mb-6 tracking-tighter italic">CRASH</h2>
-          <p className="text-2xl text-white/50 mb-12 uppercase tracking-[0.4em]">Distance : {Math.floor(score / 10)} KM</p>
-          <Button onClick={initGame} size="lg" className="rounded-2xl px-20 py-12 text-3xl font-bold bg-primary hover:scale-105 transition-transform shadow-2xl shadow-primary/40">
-            TRY AGAIN
+        <div className="absolute inset-0 bg-black/98 flex flex-col items-center justify-center p-12 text-center z-30 backdrop-blur-3xl">
+          <h2 className="text-9xl font-headline font-bold text-destructive mb-8 tracking-tighter italic">RECKLESS</h2>
+          <p className="text-2xl text-white/50 mb-16 uppercase tracking-[0.6em]">Distance : {Math.floor(score / 10)} KM</p>
+          <Button onClick={initGame} size="lg" className="rounded-3xl px-24 py-14 text-4xl font-bold bg-primary hover:scale-110 transition-transform shadow-2xl shadow-primary/50">
+            REVIVE
           </Button>
         </div>
       )}
