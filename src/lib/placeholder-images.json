@@ -3,50 +3,50 @@
     {
       "id": "block-blast",
       "description": "Block Blast Game Image",
-      "imageUrl": "https://picsum.photos/seed/10/600/400",
-      "imageHint": "colorful blocks"
+      "imageUrl": "https://picsum.photos/seed/101/600/400",
+      "imageHint": "colorful blocks neon"
     },
     {
       "id": "subway-surfer",
       "description": "Subway Surfer Game Image",
-      "imageUrl": "https://picsum.photos/seed/20/600/400",
-      "imageHint": "subway train"
+      "imageUrl": "https://picsum.photos/seed/202/600/400",
+      "imageHint": "neon tunnel perspective"
     },
     {
       "id": "mr-racer",
       "description": "Mr Racer Game Image",
-      "imageUrl": "https://picsum.photos/seed/30/600/400",
-      "imageHint": "racing car"
+      "imageUrl": "https://picsum.photos/seed/303/600/400",
+      "imageHint": "cyberpunk car rear"
     },
     {
       "id": "platformer-cube",
       "description": "Platformer Cube Game Image",
-      "imageUrl": "https://picsum.photos/seed/40/600/400",
-      "imageHint": "neon platformer"
+      "imageUrl": "https://picsum.photos/seed/404/600/400",
+      "imageHint": "neon geometric landscape"
     },
     {
       "id": "snake",
       "description": "Snake Game Image",
-      "imageUrl": "https://picsum.photos/seed/50/600/400",
-      "imageHint": "retro snake"
+      "imageUrl": "https://picsum.photos/seed/505/600/400",
+      "imageHint": "digital glow snake"
     },
     {
       "id": "tetris",
       "description": "Tetris Game Image",
-      "imageUrl": "https://picsum.photos/seed/60/600/400",
-      "imageHint": "tetris bricks"
+      "imageUrl": "https://picsum.photos/seed/606/600/400",
+      "imageHint": "tetris neon bricks"
     },
     {
       "id": "flappy-bird",
       "description": "Flappy Bird Game Image",
-      "imageUrl": "https://picsum.photos/seed/70/600/400",
-      "imageHint": "pixel bird"
+      "imageUrl": "https://picsum.photos/seed/707/600/400",
+      "imageHint": "stylized pixel wings"
     },
     {
       "id": "pong",
       "description": "Pong Game Image",
-      "imageUrl": "https://picsum.photos/seed/80/600/400",
-      "imageHint": "classic pong"
+      "imageUrl": "https://picsum.photos/seed/808/600/400",
+      "imageHint": "retro laser pong"
     }
   ]
 }

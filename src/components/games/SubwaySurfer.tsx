@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -14,20 +14,19 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
   const CANVAS_WIDTH = 400;
   const CANVAS_HEIGHT = 600;
-  const HORIZON = CANVAS_HEIGHT * 0.42;
-  const FOV = 100;
-  const TRAIN_HEIGHT = 55;
+  const HORIZON = CANVAS_HEIGHT * 0.45;
+  const FOV = 90;
+  const TRAIN_HEIGHT = 65;
 
-  const playerLane = useRef(1); // 0, 1, 2
-  const currentX = useRef(0); // Interpolated X for smoothness
+  const playerLane = useRef(1);
+  const currentX = useRef(0);
   const playerYOffset = useRef(0);
   const isJumping = useRef(false);
   const isSliding = useRef(false);
   const jumpVelocity = useRef(0);
   const obstacles = useRef<{ lane: number, z: number, length: number, type: 'train' | 'barrier' | 'ramp', color: string }[]>([]);
   const coinsList = useRef<{ lane: number, z: number }[]>([]);
-  const gameSpeed = useRef(3.5);
-  const roadOffset = useRef(0);
+  const gameSpeed = useRef(4.2);
   const frameCount = useRef(0);
 
   const initGame = useCallback(() => {
@@ -38,8 +37,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     isSliding.current = false;
     obstacles.current = [];
     coinsList.current = [];
-    gameSpeed.current = 3.5;
-    roadOffset.current = 0;
+    gameSpeed.current = 4.2;
     frameCount.current = 0;
     setScore(0);
     setCoins(0);
@@ -55,14 +53,14 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const jump = () => {
     if (gameOver || isJumping.current) return;
     isJumping.current = true;
-    jumpVelocity.current = 15;
+    jumpVelocity.current = 16;
     isSliding.current = false;
   };
 
   const slide = () => {
     if (gameOver || isSliding.current) return;
     isSliding.current = true;
-    setTimeout(() => isSliding.current = false, 800);
+    setTimeout(() => isSliding.current = false, 750);
   };
 
   const update = useCallback(() => {
@@ -70,23 +68,18 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
     frameCount.current++;
     setScore(s => s + 1);
-    roadOffset.current = (roadOffset.current + gameSpeed.current * 7) % 100;
 
-    // Fluid X-Axis Lerp
-    const targetX = (playerLane.current - 1) * 115;
-    currentX.current += (targetX - currentX.current) * 0.25;
+    const targetX = (playerLane.current - 1) * 125;
+    currentX.current += (targetX - currentX.current) * 0.22;
 
-    // Physics
     playerYOffset.current += jumpVelocity.current;
-    jumpVelocity.current -= 0.85;
+    jumpVelocity.current -= 0.9;
 
     let onTrain = false;
     obstacles.current.forEach(obs => {
       if (obs.type === 'train' || obs.type === 'ramp') {
-        const trainStart = obs.z;
-        const trainEnd = obs.z + obs.length;
-        if (playerLane.current === obs.lane && trainStart < 55 && trainEnd > 20) {
-           if (playerYOffset.current >= TRAIN_HEIGHT - 8) {
+        if (playerLane.current === obs.lane && obs.z < 60 && (obs.z + obs.length) > 20) {
+           if (playerYOffset.current >= TRAIN_HEIGHT - 10) {
              onTrain = true;
            }
         }
@@ -100,52 +93,49 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
       isJumping.current = false;
     }
 
-    // Spawn Logic
-    if (frameCount.current % 90 === 0) {
-      const rand = Math.random();
-      if (rand > 0.4) {
-        const type = Math.random() > 0.6 ? 'ramp' : 'train';
-        obstacles.current.push({ 
-          lane: Math.floor(Math.random() * 3), 
-          z: 800, 
-          length: 400 + Math.random() * 400, 
-          type: type,
-          color: ['#1e40af', '#1e3a8a', '#334155'][Math.floor(Math.random() * 3)]
-        });
-      } else {
-        obstacles.current.push({ lane: Math.floor(Math.random() * 3), z: 800, length: 30, type: 'barrier', color: '#dc2626' });
-      }
+    if (frameCount.current % 80 === 0) {
+      const lane = Math.floor(Math.random() * 3);
+      const isRamp = Math.random() > 0.7;
+      obstacles.current.push({ 
+        lane, 
+        z: 1000, 
+        length: isRamp ? 300 : 600 + Math.random() * 600, 
+        type: isRamp ? 'ramp' : 'train',
+        color: ['#1e3a8a', '#1e40af', '#172554'][Math.floor(Math.random() * 3)]
+      });
+    } else if (frameCount.current % 120 === 0) {
+      obstacles.current.push({ lane: Math.floor(Math.random() * 3), z: 1000, length: 40, type: 'barrier', color: '#dc2626' });
     }
-    if (frameCount.current % 35 === 0) coinsList.current.push({ lane: Math.floor(Math.random() * 3), z: 800 });
 
-    gameSpeed.current += 0.0008;
+    if (frameCount.current % 40 === 0) coinsList.current.push({ lane: Math.floor(Math.random() * 3), z: 1000 });
 
-    // Collisions
+    gameSpeed.current += 0.001;
+
     obstacles.current.forEach(obj => {
-      obj.z -= gameSpeed.current * 7;
-      if (obj.lane === playerLane.current && obj.z < 45 && obj.z + obj.length > 25) {
+      obj.z -= gameSpeed.current * 8;
+      if (obj.lane === playerLane.current && obj.z < 45 && (obj.z + obj.length) > 25) {
         if (obj.type === 'ramp' && playerYOffset.current < TRAIN_HEIGHT) {
-           playerYOffset.current += (TRAIN_HEIGHT - playerYOffset.current) * 0.3;
+           playerYOffset.current += (TRAIN_HEIGHT - playerYOffset.current) * 0.4;
         } else if (obj.type === 'train' && playerYOffset.current < TRAIN_HEIGHT - 15) {
            setGameOver(true);
-        } else if (obj.type === 'barrier' && playerYOffset.current < 25) {
+        } else if (obj.type === 'barrier' && !isSliding.current && playerYOffset.current < 40) {
            setGameOver(true);
         }
       }
     });
 
     coinsList.current.forEach(c => {
-      c.z -= gameSpeed.current * 7;
-      if (c.lane === playerLane.current && c.z > 20 && c.z < 50) {
+      c.z -= gameSpeed.current * 8;
+      if (c.lane === playerLane.current && c.z > 20 && c.z < 60) {
         const charY = playerYOffset.current;
-        if (Math.abs(charY - 0) < 40 || Math.abs(charY - TRAIN_HEIGHT) < 40) {
+        if (Math.abs(charY - 0) < 50 || Math.abs(charY - TRAIN_HEIGHT) < 50) {
            setCoins(prev => prev + 1);
-           c.z = -200;
+           c.z = -500;
         }
       }
     });
 
-    obstacles.current = obstacles.current.filter(o => o.z + o.length > -100);
+    obstacles.current = obstacles.current.filter(o => (o.z + o.length) > -100);
     coinsList.current = coinsList.current.filter(c => c.z > -100);
   }, [gameOver]);
 
@@ -154,28 +144,28 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     ctx.translate(x, y);
     ctx.scale(scale, scale);
 
-    const bodyH = isSliding.current ? 25 : 55;
-
-    // Character Shadow
+    const bodyH = isSliding.current ? 30 : 60;
+    
+    // Ombre
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath(); ctx.ellipse(0, 0, 22, 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, 25, 12, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Humanoid Body
+    // Silhouette humanoïde stylisée
     ctx.fillStyle = '#C41DFA';
-    ctx.beginPath(); ctx.roundRect(-16, -bodyH - 15, 32, bodyH, 12); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-18, -bodyH - 20, 36, bodyH, 15); ctx.fill();
     
-    // Shirt / Detail
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.fillRect(-16, -bodyH - 5, 32, 10);
+    // Détail T-shirt
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(-18, -bodyH - 10, 36, 12);
 
-    // Head
-    ctx.fillStyle = '#ffccaa';
-    ctx.beginPath(); ctx.arc(0, -bodyH - 35, 14, 0, Math.PI * 2); ctx.fill();
+    // Tête
+    ctx.fillStyle = '#fdb';
+    ctx.beginPath(); ctx.arc(0, -bodyH - 40, 16, 0, Math.PI * 2); ctx.fill();
     
-    // Stylish Cap
+    // Casquette
     ctx.fillStyle = '#FA1D64';
-    ctx.beginPath(); ctx.roundRect(-14, -bodyH - 49, 28, 10, 4); ctx.fill();
-    ctx.fillRect(0, -bodyH - 49, 22, 4);
+    ctx.beginPath(); ctx.roundRect(-16, -bodyH - 56, 32, 12, 5); ctx.fill();
+    ctx.fillRect(0, -bodyH - 56, 25, 5);
 
     ctx.restore();
   };
@@ -183,105 +173,87 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Neon Sky
+    // Tunnel / Ciel
     const sky = ctx.createLinearGradient(0, 0, 0, HORIZON);
-    sky.addColorStop(0, '#020617');
-    sky.addColorStop(1, '#1e1b4b');
+    sky.addColorStop(0, '#020617'); sky.addColorStop(1, '#1e1b4b');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
 
-    // Glowing Horizon
-    ctx.shadowBlur = 40; ctx.shadowColor = '#4f46e5';
-    ctx.strokeStyle = '#4f46e5'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, HORIZON); ctx.lineTo(CANVAS_WIDTH, HORIZON); ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // Concrete Floor
+    // Sol béton
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
 
-    // Moving Tracks
-    ctx.strokeStyle = '#334155';
-    ctx.lineWidth = 4;
+    // Rails qui convergent
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 3;
     for (let i = 0; i <= 3; i++) {
-      const laneX = (i - 1.5) * 115;
+      const laneX = (i - 1.5) * 125;
       ctx.beginPath();
       ctx.moveTo(CANVAS_WIDTH/2, HORIZON);
-      ctx.lineTo(CANVAS_WIDTH/2 + laneX * 15, CANVAS_HEIGHT);
+      ctx.lineTo(CANVAS_WIDTH/2 + laneX * 18, CANVAS_HEIGHT);
       ctx.stroke();
     }
 
-    // Sort and Draw objects by depth
-    const allObjects = [
+    // Objets (fond vers avant)
+    const all = [
       ...obstacles.current.map(o => ({...o, isObs: true})),
       ...coinsList.current.map(c => ({...c, isObs: false, length: 0, type: 'coin', color: '#FAC11D'}))
     ].sort((a, b) => b.z - a.z);
 
-    allObjects.forEach(obj => {
-      const scaleStart = FOV / (FOV + obj.z);
-      const scaleEnd = FOV / (FOV + obj.z + obj.length);
-      const laneX = (obj.lane - 1) * 115;
+    all.forEach(obj => {
+      const scaleS = FOV / (FOV + obj.z);
+      const scaleE = FOV / (FOV + obj.z + obj.length);
+      const laneX = (obj.lane - 1) * 125;
       
-      const xStart = CANVAS_WIDTH / 2 + laneX * scaleStart;
-      const xEnd = CANVAS_WIDTH / 2 + laneX * scaleEnd;
-      const yStart = HORIZON + (CANVAS_HEIGHT - HORIZON) * scaleStart;
-      const yEnd = HORIZON + (CANVAS_HEIGHT - HORIZON) * scaleEnd;
+      const xS = CANVAS_WIDTH / 2 + laneX * scaleS * 4;
+      const xE = CANVAS_WIDTH / 2 + laneX * scaleE * 4;
+      const yS = HORIZON + (CANVAS_HEIGHT - HORIZON) * scaleS;
+      const yE = HORIZON + (CANVAS_HEIGHT - HORIZON) * scaleE;
 
       if (obj.type === 'train' || obj.type === 'ramp') {
-        const wStart = 105 * scaleStart;
-        const wEnd = 105 * scaleEnd;
-        const hStart = TRAIN_HEIGHT * scaleStart;
-        const hEnd = TRAIN_HEIGHT * scaleEnd;
+        const wS = 120 * scaleS; const wE = 120 * scaleE;
+        const hS = TRAIN_HEIGHT * scaleS; const hE = TRAIN_HEIGHT * scaleE;
 
-        // Train Body - Metallic Blue
-        const grad = ctx.createLinearGradient(xStart, yStart, xStart, yStart - hStart);
-        grad.addColorStop(0, '#1e3a8a'); grad.addColorStop(1, '#3b82f6');
+        const grad = ctx.createLinearGradient(xS, yS, xS, yS - hS);
+        grad.addColorStop(0, '#1e40af'); grad.addColorStop(1, '#3b82f6');
         ctx.fillStyle = grad;
         
+        // Corps du train
         ctx.beginPath();
-        ctx.moveTo(xStart - wStart/2, yStart);
-        ctx.lineTo(xEnd - wEnd/2, yEnd);
-        ctx.lineTo(xEnd + wEnd/2, yEnd);
-        ctx.lineTo(xStart + wStart/2, yStart);
+        ctx.moveTo(xS - wS/2, yS); ctx.lineTo(xE - wE/2, yE);
+        ctx.lineTo(xE + wE/2, yE); ctx.lineTo(xS + wS/2, yS);
         ctx.fill();
         
-        // Roof
+        // Toit
         ctx.fillStyle = '#2563eb';
         ctx.beginPath();
-        ctx.moveTo(xStart - wStart/2, yStart - hStart);
-        ctx.lineTo(xEnd - wEnd/2, yEnd - hEnd);
-        ctx.lineTo(xEnd + wEnd/2, yEnd - hEnd);
-        ctx.lineTo(xStart + wStart/2, yStart - hStart);
+        ctx.moveTo(xS - wS/2, yS - hS); ctx.lineTo(xE - wE/2, yE - hE);
+        ctx.lineTo(xE + wE/2, yE - hE); ctx.lineTo(xS + wS/2, yS - hS);
         ctx.fill();
 
-        // Windows
-        ctx.fillStyle = 'rgba(255,255,255,0.1)';
-        ctx.fillRect(xStart - wStart/2.5, yStart - hStart * 0.8, wStart * 0.8, hStart * 0.4);
+        // Reflets vitres
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.fillRect(xS - wS/2.5, yS - hS * 0.7, wS * 0.8, hS * 0.3);
       } else if (obj.type === 'barrier') {
-        const bW = 85 * scaleStart;
-        const bH = 45 * scaleStart;
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(xStart - bW/2, yStart - bH, bW, bH);
-        ctx.fillStyle = 'white';
-        ctx.fillRect(xStart - bW/2, yStart - bH/2 - 2, bW, 4);
+        const bW = 100 * scaleS; const bH = 50 * scaleS;
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(xS - bW/2, yS - bH, bW, bH);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(xS - bW/2, yS - bH/2 - 2, bW, 4);
       } else if (obj.type === 'coin') {
-        const cS = 35 * scaleStart;
+        const cs = 40 * scaleS;
         ctx.fillStyle = '#fbbf24';
-        ctx.shadowBlur = 10; ctx.shadowColor = 'yellow';
-        ctx.beginPath(); ctx.arc(xStart, yStart - 25 * scaleStart, cS/2, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 10; ctx.shadowColor = '#fbbf24';
+        ctx.beginPath(); ctx.arc(xS, yS - 30 * scaleS, cs/2, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
       }
     });
 
-    // Player character with fluid position
-    const pScale = FOV / (FOV + 40);
-    const px = CANVAS_WIDTH / 2 + currentX.current * pScale;
+    // Personnage (caméra fixe)
+    const pScale = FOV / (FOV + 45);
+    const px = CANVAS_WIDTH / 2 + currentX.current * pScale * 1.5;
     const py = (HORIZON + (CANVAS_HEIGHT - HORIZON) * pScale) - playerYOffset.current * pScale;
-    drawCharacter(ctx, px, py, pScale * 1.6);
+    drawCharacter(ctx, px, py, pScale * 1.8);
 
-    // Speed Lines Effect
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-    ctx.beginPath(); ctx.moveTo(0, CANVAS_HEIGHT - 40); ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT - 40); ctx.stroke();
   }, [score, coins, isSliding]);
 
   useEffect(() => {
@@ -300,11 +272,11 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     const dx = e.changedTouches[0].clientX - touchStart.current.x;
     const dy = e.changedTouches[0].clientY - touchStart.current.y;
     if (Math.abs(dx) > Math.abs(dy)) {
-      if (dx > 40) moveLane(1);
-      else if (dx < -40) moveLane(-1);
+      if (dx > 35) moveLane(1);
+      else if (dx < -35) moveLane(-1);
     } else {
-      if (dy < -40) jump();
-      else if (dy > 40) slide();
+      if (dy < -35) jump();
+      else if (dy > 35) slide();
     }
   };
 
@@ -323,49 +295,35 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center bg-black overflow-hidden touch-none" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      <div className="absolute top-10 right-10 flex flex-col items-end gap-2 z-20 pointer-events-none">
-          <div className="flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-2xl border border-yellow-500/30">
-             <span className="text-yellow-500 font-black text-2xl">{coins}</span>
-             <div className="w-4 h-4 rounded-full bg-yellow-500 shadow-[0_0_10px_yellow]" />
+      <div className="absolute top-10 left-10 flex flex-col items-start gap-1 z-20 pointer-events-none">
+          <div className="text-5xl font-headline font-bold text-white italic tracking-tighter shadow-sm">
+             {Math.floor(score / 10)}<span className="text-xl text-primary ml-1 uppercase">M</span>
           </div>
-          <div className="text-4xl font-headline font-bold text-white italic tracking-tighter">
-             {Math.floor(score / 10)}<span className="text-sm font-normal text-muted-foreground ml-1">M</span>
+          <div className="flex items-center gap-2 bg-yellow-500/30 px-3 py-1 rounded-full border border-yellow-500/40">
+             <span className="text-yellow-400 font-bold">{coins} COINS</span>
           </div>
       </div>
 
-      <canvas ref={canvasRef} width={400} height={600} className="w-full h-auto max-h-[85vh] shadow-[0_0_150px_rgba(79,70,229,0.15)]" />
+      <canvas ref={canvasRef} width={400} height={600} className="w-full h-auto max-h-[92vh]" />
       
-      {isMobile && !gameOver && (
-        <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-6 px-10">
-          <div className="flex w-full justify-between items-center gap-4">
-             <Button variant="outline" className="w-20 h-20 rounded-[2.5rem] bg-white/5 border-white/10" onClick={() => moveLane(-1)}><ArrowLeft className="h-10 w-10 text-white" /></Button>
-             <div className="flex flex-col gap-4">
-                <Button className="w-24 h-24 rounded-[3rem] bg-primary shadow-xl shadow-primary/20" onClick={jump}><ArrowUp className="h-12 w-12" /></Button>
-                <Button className="w-24 h-20 rounded-[2rem] bg-secondary" onClick={slide}><ArrowDown className="h-10 w-10" /></Button>
-             </div>
-             <Button variant="outline" className="w-20 h-20 rounded-[2.5rem] bg-white/5 border-white/10" onClick={() => moveLane(1)}><ArrowRight className="h-10 w-10 text-white" /></Button>
-          </div>
-          <p className="text-[0.6rem] uppercase tracking-[0.5em] text-white/20 font-bold">Swipe or use buttons</p>
+      {!gameOver && (
+        <div className="absolute bottom-12 text-white/20 text-xs font-bold uppercase tracking-[0.6em] animate-pulse">
+           Swipe to run
         </div>
       )}
 
       {gameOver && (
-        <div className="absolute inset-0 bg-[#020617]/98 flex flex-col items-center justify-center p-8 text-center z-30 backdrop-blur-xl">
-          <div className="relative mb-10">
-             <h2 className="text-9xl font-headline font-bold text-white tracking-tighter italic z-10 relative">BUSTED</h2>
-             <div className="absolute inset-0 bg-primary blur-[80px] opacity-20 -z-0" />
-          </div>
-          <div className="grid grid-cols-2 gap-8 mb-16 w-full max-w-sm">
-             <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
-                <p className="text-xs uppercase font-bold text-muted-foreground mb-1">Distance</p>
+        <div className="absolute inset-0 bg-black/98 flex flex-col items-center justify-center p-8 text-center z-30 backdrop-blur-2xl">
+          <h2 className="text-9xl font-headline font-bold text-white tracking-tighter italic mb-8">CAUGHT</h2>
+          <div className="flex gap-4 mb-16">
+             <div className="bg-white/5 px-8 py-6 rounded-3xl border border-white/10">
                 <p className="text-3xl font-bold">{Math.floor(score / 10)}M</p>
              </div>
-             <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
-                <p className="text-xs uppercase font-bold text-muted-foreground mb-1">Coins</p>
+             <div className="bg-white/5 px-8 py-6 rounded-3xl border border-white/10">
                 <p className="text-3xl font-bold text-yellow-500">{coins}</p>
              </div>
           </div>
-          <Button onClick={initGame} size="lg" className="rounded-[2rem] px-20 py-12 text-3xl font-bold bg-primary hover:bg-primary/90 transition-all hover:scale-110 shadow-2xl shadow-primary/30">
+          <Button onClick={initGame} size="lg" className="rounded-full px-20 py-12 text-3xl font-bold bg-primary hover:bg-primary/90 transition-all hover:scale-105 shadow-2xl shadow-primary/40">
             RUN AGAIN
           </Button>
         </div>
