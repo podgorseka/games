@@ -36,7 +36,7 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   }, []);
 
   const spawnEnemy = useCallback(() => {
-    if (enemies.current.filter(e => e.z > 2000).length > 1) return;
+    if (enemies.current.filter(e => e.z > 2000).length > 2) return;
 
     const lanes = [-110, 0, 110];
     const laneX = lanes[Math.floor(Math.random() * lanes.length)];
@@ -46,25 +46,25 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
       z: 3500,
       speed: 0.05 + Math.random() * 0.04, 
       color: colors[Math.floor(Math.random() * colors.length)],
-      type: Math.random() > 0.85 ? 'truck' : 'car'
+      type: Math.random() > 0.8 ? 'truck' : 'car'
     });
   }, []);
 
   const update = useCallback(() => {
     if (gameOver) return;
 
-    // Movement
+    // Commandes de direction (clic sur les côtés)
     if (keys.current['ArrowLeft'] || keys.current['a'] || keys.current['LeftTouch']) targetX.current -= 12;
     if (keys.current['ArrowRight'] || keys.current['d'] || keys.current['RightTouch']) targetX.current += 12;
 
-    // Speed Control
+    // Contrôle de la vitesse (Pédales)
     if (keys.current['Accel']) targetSpeed.current = Math.min(0.28, targetSpeed.current + 0.003);
     else if (keys.current['Brake']) targetSpeed.current = Math.max(0.06, targetSpeed.current - 0.006);
     else targetSpeed.current = Math.max(0.12, targetSpeed.current - 0.001);
 
     playerSpeed.current += (targetSpeed.current - playerSpeed.current) * 0.12;
-
     playerX.current += (targetX.current - playerX.current) * 0.2;
+    
     targetX.current = Math.max(-160, Math.min(160, targetX.current));
     playerX.current = Math.max(-160, Math.min(160, playerX.current));
 
@@ -74,12 +74,12 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     if (Math.random() < 0.012) spawnEnemy();
     
     enemies.current.forEach(e => {
+      // Les voitures roulent dans le même sens, donc on les dépasse si on va plus vite
       const relativeSpeed = (playerSpeed.current - e.speed) * 190;
       e.z -= relativeSpeed;
 
-      // Improved Collision Box
-      const carW = e.type === 'truck' ? 75 : 55;
-      const carL = 80;
+      // Détection de collision précise sur le volume
+      const carW = e.type === 'truck' ? 70 : 50;
       if (e.z > -20 && e.z < 60) {
         const dist = Math.abs(e.x - playerX.current);
         if (dist < carW) {
@@ -99,45 +99,48 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     if (screenY < HORIZON || scale < 0.01) return;
 
     const carW = (type === 'truck' ? 180 : 140) * scale;
-    const carH = (type === 'truck' ? 140 : 100) * scale;
-    const depth = (type === 'truck' ? 100 : 60) * scale;
+    const carH = (type === 'truck' ? 160 : 110) * scale; // Hauteur augmentée
+    const depth = (type === 'truck' ? 120 : 70) * scale;
 
     ctx.save();
     ctx.translate(screenX, screenY);
     
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    // Ombre portée
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(0, 0, carW * 0.65, carH * 0.25, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, carW * 0.7, carH * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body (Rear face)
+    // Arrière du véhicule (Face principale)
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.roundRect(-carW/2, -carH, carW, carH, 12 * scale);
+    ctx.roundRect(-carW/2, -carH, carW, carH, 10 * scale);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.stroke();
 
-    // Top face (Perspective)
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    // Toit en perspective
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
     ctx.beginPath();
     ctx.moveTo(-carW/2, -carH);
     ctx.lineTo(carW/2, -carH);
     ctx.lineTo(carW/2.5, -carH - depth);
     ctx.lineTo(-carW/2.5, -carH - depth);
+    ctx.closePath();
     ctx.fill();
 
-    // Windshield
+    // Lunette arrière (Vitre)
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
-    ctx.roundRect(-carW/3, -carH * 0.9, (carW/3)*2, carH * 0.45, 6 * scale);
+    ctx.roundRect(-carW/2.5, -carH * 0.9, (carW/2.5)*2, carH * 0.5, 4 * scale);
     ctx.fill();
 
-    // Tail lights
-    ctx.shadowBlur = 25 * scale;
+    // Feux arrière (Halo lumineux)
+    ctx.shadowBlur = 15 * scale;
     ctx.shadowColor = '#ff0000';
     ctx.fillStyle = '#ff0000';
-    ctx.fillRect(-carW/2 + 8 * scale, -carH * 0.6, 25 * scale, 15 * scale);
-    ctx.fillRect(carW/2 - 33 * scale, -carH * 0.6, 25 * scale, 15 * scale);
+    ctx.fillRect(-carW/2 + 10 * scale, -carH * 0.65, 25 * scale, 12 * scale);
+    ctx.fillRect(carW/2 - 35 * scale, -carH * 0.65, 25 * scale, 12 * scale);
 
     ctx.restore();
   };
@@ -145,29 +148,20 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Sky
+    // Ciel atmosphérique
     const sky = ctx.createLinearGradient(0, 0, 0, HORIZON);
     sky.addColorStop(0, '#020617');
-    sky.addColorStop(0.8, '#0f172a');
     sky.addColorStop(1, '#1e293b');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
 
-    // Distant City Lights (Simple bokeh)
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    for(let i=0; i<10; i++) {
-        ctx.beginPath();
-        ctx.arc(i*80 + Math.sin(Date.now()/1000)*10, HORIZON - 20, 2, 0, Math.PI*2);
-        ctx.fill();
-    }
-
-    // Road
+    // Route cinématique
     ctx.fillStyle = '#020617';
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
 
-    // Lanes
-    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-    ctx.lineWidth = 2;
+    // Lignes de fuite et délimitation des voies
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
     for (let i = -2; i <= 2; i++) {
        const laneX = i * 160;
        ctx.beginPath();
@@ -176,15 +170,15 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
        ctx.stroke();
     }
 
-    // Moving Dashes
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    for (let i = 0; i < 12; i++) {
+    // Marquages au sol dynamiques
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    for (let i = 0; i < 15; i++) {
       const z = i * 200 - roadOffset.current;
       if (z < 0) continue;
       const scale = FOV / (FOV + z);
       const y = HORIZON + (CANVAS_HEIGHT - HORIZON) * scale;
-      const dashW = 12 * scale;
-      const dashL = 80 * scale;
+      const dashW = 10 * scale;
+      const dashL = 90 * scale;
       
       const lanes = [-80, 80];
       lanes.forEach(lx => {
@@ -193,9 +187,11 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
       });
     }
 
-    // Entities
+    // Dessin des véhicules triés par distance
     const all = [...enemies.current].sort((a, b) => b.z - a.z);
     all.forEach(e => drawCar(ctx, e.x, e.z, e.color, false, e.type));
+    
+    // Dessin du joueur (fixé à Z=50)
     drawCar(ctx, playerX.current, 50, '#C41DFA', true);
 
   }, [score, roadOffset.current]);
@@ -226,26 +222,21 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
   useEffect(() => { if (gameOver) onGameOver(Math.floor(score / 10)); }, [gameOver, score, onGameOver]);
 
-  const handleTouch = (side: 'left' | 'right', isDown: boolean) => {
-      if (side === 'left') keys.current['LeftTouch'] = isDown;
-      else keys.current['RightTouch'] = isDown;
-  }
-
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center bg-[#020617] overflow-hidden touch-none select-none">
-      <div 
-        className="absolute inset-0 z-10 flex"
-        onPointerLeave={() => { keys.current['LeftTouch'] = false; keys.current['RightTouch'] = false; }}
-      >
+      {/* Zones tactiles latérales invisibles */}
+      <div className="absolute inset-0 z-10 flex">
           <div 
             className="flex-1" 
-            onPointerDown={() => handleTouch('left', true)} 
-            onPointerUp={() => handleTouch('left', false)} 
+            onPointerDown={() => keys.current['LeftTouch'] = true} 
+            onPointerUp={() => keys.current['LeftTouch'] = false} 
+            onPointerLeave={() => keys.current['LeftTouch'] = false}
           />
           <div 
             className="flex-1" 
-            onPointerDown={() => handleTouch('right', true)} 
-            onPointerUp={() => handleTouch('right', false)} 
+            onPointerDown={() => keys.current['RightTouch'] = true} 
+            onPointerUp={() => keys.current['RightTouch'] = false} 
+            onPointerLeave={() => keys.current['RightTouch'] = false}
           />
       </div>
 
@@ -254,7 +245,7 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
           {Math.floor(score / 10)} <span className="text-2xl text-primary">KM</span>
         </div>
         <div className="text-primary font-bold tracking-widest uppercase text-sm mt-2 flex items-center gap-2">
-            <Zap className="h-4 w-4 fill-current" /> {Math.floor(playerSpeed.current * 1000)} KM/H
+            <Zap className="h-4 w-4 fill-current" /> {Math.floor(playerSpeed.current * 1200)} KM/H
         </div>
       </div>
 
@@ -263,23 +254,23 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
       {!gameOver && (
           <div className="absolute bottom-12 inset-x-8 flex justify-between z-30 pointer-events-none">
               <div 
-                  className="w-20 h-28 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center pointer-events-auto active:bg-red-500/20 active:border-red-500/40 transition-colors"
+                  className="w-24 h-32 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center justify-center pointer-events-auto active:bg-red-500/20 active:border-red-500/40 transition-all active:scale-95"
                   onPointerDown={() => keys.current['Brake'] = true}
                   onPointerUp={() => keys.current['Brake'] = false}
                   onPointerLeave={() => keys.current['Brake'] = false}
               >
-                  <div className="text-white/30 text-[10px] font-bold uppercase mb-1">Brake</div>
-                  <div className="w-10 h-1 bg-white/10 rounded-full" />
+                  <div className="text-white/30 text-[10px] font-bold uppercase mb-2">Brake</div>
+                  <div className="w-12 h-1.5 bg-white/10 rounded-full" />
               </div>
 
               <div 
-                  className="w-20 h-36 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center pointer-events-auto active:bg-primary/20 active:border-primary/40 transition-colors"
+                  className="w-24 h-40 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center justify-center pointer-events-auto active:bg-primary/20 active:border-primary/40 transition-all active:scale-95"
                   onPointerDown={() => keys.current['Accel'] = true}
                   onPointerUp={() => keys.current['Accel'] = false}
                   onPointerLeave={() => keys.current['Accel'] = false}
               >
-                  <div className="text-white/30 text-[10px] font-bold uppercase mb-1">Accel</div>
-                  <div className="w-6 h-16 bg-primary/10 rounded-lg border border-primary/20" />
+                  <div className="text-white/30 text-[10px] font-bold uppercase mb-2">Accel</div>
+                  <div className="w-8 h-20 bg-primary/20 rounded-xl border border-primary/30" />
               </div>
           </div>
       )}
@@ -287,7 +278,7 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
       {gameOver && (
         <div className="absolute inset-0 bg-black/98 flex flex-col items-center justify-center p-12 text-center z-50 backdrop-blur-3xl">
           <h2 className="text-9xl font-headline font-bold text-destructive mb-8 tracking-tighter italic">CRASH</h2>
-          <p className="text-2xl text-white/50 mb-16 uppercase tracking-[0.6em]">Score : {Math.floor(score / 10)} KM</p>
+          <p className="text-2xl text-white/50 mb-16 uppercase tracking-[0.6em]">Distance parcourue : {Math.floor(score / 10)} KM</p>
           <Button onClick={initGame} size="lg" className="rounded-3xl px-24 py-14 text-4xl font-bold bg-primary hover:scale-110 transition-transform shadow-2xl">
             REESSAYER
           </Button>
@@ -296,4 +287,3 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     </div>
   );
 }
-
