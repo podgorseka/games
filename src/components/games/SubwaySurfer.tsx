@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Zap } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -14,9 +14,9 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
   const CANVAS_WIDTH = 400;
   const CANVAS_HEIGHT = 600;
-  const HORIZON = CANVAS_HEIGHT * 0.4;
+  const HORIZON = CANVAS_HEIGHT * 0.38;
   const FOV = 110;
-  const TRAIN_HEIGHT = 90;
+  const TRAIN_HEIGHT = 100;
 
   const playerLane = useRef(1);
   const currentX = useRef(0);
@@ -26,7 +26,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const jumpVelocity = useRef(0);
   const obstacles = useRef<{ lane: number, z: number, length: number, type: 'train' | 'barrier' | 'ramp', climbable: boolean, color: string }[]>([]);
   const coinsList = useRef<{ lane: number, z: number }[]>([]);
-  const gameSpeed = useRef(4);
+  const gameSpeed = useRef(4.5);
   const frameCount = useRef(0);
 
   const initGame = useCallback(() => {
@@ -37,7 +37,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     isSliding.current = false;
     obstacles.current = [];
     coinsList.current = [];
-    gameSpeed.current = 4;
+    gameSpeed.current = 4.5;
     frameCount.current = 0;
     setScore(0);
     setCoins(0);
@@ -53,7 +53,7 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const jump = () => {
     if (gameOver || isJumping.current) return;
     isJumping.current = true;
-    jumpVelocity.current = 18;
+    jumpVelocity.current = 19;
     isSliding.current = false;
   };
 
@@ -70,16 +70,16 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     setScore(s => s + 1);
 
     const targetX = (playerLane.current - 1) * 140;
-    currentX.current += (targetX - currentX.current) * 0.18;
+    currentX.current += (targetX - currentX.current) * 0.16;
 
     playerYOffset.current += jumpVelocity.current;
-    jumpVelocity.current -= 0.85;
+    jumpVelocity.current -= 0.88;
 
     let onTrain = false;
     obstacles.current.forEach(obs => {
       if (obs.type === 'train' || obs.type === 'ramp') {
         if (playerLane.current === obs.lane && obs.z < 80 && (obs.z + obs.length) > 20) {
-           if (playerYOffset.current >= TRAIN_HEIGHT - 20) {
+           if (playerYOffset.current >= TRAIN_HEIGHT - 15) {
              onTrain = true;
            }
         }
@@ -93,50 +93,51 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
       isJumping.current = false;
     }
 
-    if (frameCount.current % 120 === 0) {
+    if (frameCount.current % 130 === 0) {
       const lane = Math.floor(Math.random() * 3);
-      const isClimbable = Math.random() > 0.65;
+      const isClimbable = Math.random() > 0.6;
       obstacles.current.push({ 
         lane, 
-        z: 2500, 
-        length: isClimbable ? 500 : 1200 + Math.random() * 1500, 
+        z: 3000, 
+        length: isClimbable ? 600 : 1500 + Math.random() * 1500, 
         type: isClimbable ? 'ramp' : 'train',
         climbable: isClimbable,
         color: isClimbable ? '#2563eb' : '#1e1b4b'
       });
-    } else if (frameCount.current % 160 === 0) {
-      obstacles.current.push({ lane: Math.floor(Math.random() * 3), z: 2500, length: 60, type: 'barrier', climbable: false, color: '#dc2626' });
+    } else if (frameCount.current % 180 === 0) {
+      obstacles.current.push({ lane: Math.floor(Math.random() * 3), z: 3000, length: 70, type: 'barrier', climbable: false, color: '#dc2626' });
     }
 
-    if (frameCount.current % 60 === 0) coinsList.current.push({ lane: Math.floor(Math.random() * 3), z: 2500 });
+    if (frameCount.current % 70 === 0) coinsList.current.push({ lane: Math.floor(Math.random() * 3), z: 3000 });
 
-    gameSpeed.current += 0.0008;
+    gameSpeed.current += 0.0007;
 
     obstacles.current.forEach(obj => {
-      obj.z -= gameSpeed.current * 8;
+      obj.z -= gameSpeed.current * 7.5;
       if (obj.lane === playerLane.current && obj.z < 60 && (obj.z + obj.length) > 30) {
         if (obj.type === 'ramp' && playerYOffset.current < TRAIN_HEIGHT) {
-           playerYOffset.current += (TRAIN_HEIGHT - playerYOffset.current) * 0.3;
-        } else if (obj.type === 'train' && playerYOffset.current < TRAIN_HEIGHT - 35) {
+           playerYOffset.current += (TRAIN_HEIGHT - playerYOffset.current) * 0.35;
+        } else if (obj.type === 'train' && playerYOffset.current < TRAIN_HEIGHT - 30) {
            setGameOver(true);
-        } else if (obj.type === 'barrier' && !isSliding.current && playerYOffset.current < 60) {
+        } else if (obj.type === 'barrier' && !isSliding.current && playerYOffset.current < 65) {
            setGameOver(true);
         }
       }
     });
 
     coinsList.current.forEach(c => {
-      c.z -= gameSpeed.current * 8;
-      if (c.lane === playerLane.current && c.z > 30 && c.z < 90) {
-        if (Math.abs(playerYOffset.current - 0) < 70 || Math.abs(playerYOffset.current - TRAIN_HEIGHT) < 70) {
+      c.z -= gameSpeed.current * 7.5;
+      if (c.lane === playerLane.current && c.z > 20 && c.z < 100) {
+        const charY = playerYOffset.current;
+        if (Math.abs(charY - 0) < 80 || Math.abs(charY - TRAIN_HEIGHT) < 80) {
            setCoins(prev => prev + 1);
-           c.z = -2000;
+           c.z = -3000;
         }
       }
     });
 
-    obstacles.current = obstacles.current.filter(o => (o.z + o.length) > -200);
-    coinsList.current = coinsList.current.filter(c => c.z > -200);
+    obstacles.current = obstacles.current.filter(o => (o.z + o.length) > -300);
+    coinsList.current = coinsList.current.filter(c => c.z > -300);
   }, [gameOver]);
 
   const drawCharacter = (ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) => {
@@ -144,24 +145,24 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     ctx.translate(x, y);
     ctx.scale(scale, scale);
 
-    const bodyH = isSliding.current ? 45 : 80;
+    const bodyH = isSliding.current ? 45 : 85;
     
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.beginPath(); ctx.ellipse(0, 0, 40, 18, 0, 0, Math.PI * 2); ctx.fill();
+    // Shadow au sol
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath(); ctx.ellipse(0, 0, 45, 20, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Body
+    // Corps articulé
     ctx.fillStyle = '#C41DFA';
-    ctx.beginPath(); ctx.roundRect(-30, -bodyH - 35, 60, bodyH, 25); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-30, -bodyH - 35, 60, bodyH, 28); ctx.fill();
     
-    // Head
+    // Tête
     ctx.fillStyle = '#ffdbac';
-    ctx.beginPath(); ctx.arc(0, -bodyH - 55, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -bodyH - 60, 24, 0, Math.PI * 2); ctx.fill();
     
-    // Fashion Detail
+    // Casquette stylée
     ctx.fillStyle = '#FA1D64';
-    ctx.beginPath(); ctx.roundRect(-25, -bodyH - 75, 50, 18, 10); ctx.fill();
-    ctx.fillRect(15, -bodyH - 75, 35, 10);
+    ctx.beginPath(); ctx.roundRect(-28, -bodyH - 82, 56, 20, 12); ctx.fill();
+    ctx.fillRect(15, -bodyH - 82, 40, 12);
 
     ctx.restore();
   };
@@ -169,23 +170,23 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Atmospheric Depth
+    // Ciel nocturne profond
     const sky = ctx.createLinearGradient(0, 0, 0, HORIZON);
     sky.addColorStop(0, '#000000'); sky.addColorStop(0.8, '#0f172a'); sky.addColorStop(1, '#1e293b');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
 
-    // Track Ground
+    // Sol des rails
     ctx.fillStyle = '#020617';
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
 
-    // Realistic Lane Markers
-    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3;
+    // Rails avec perspective atmosphérique
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 4;
     for (let i = 0; i <= 3; i++) {
-      const laneX = (i - 1.5) * 160;
+      const laneX = (i - 1.5) * 165;
       ctx.beginPath();
       ctx.moveTo(CANVAS_WIDTH/2, HORIZON);
-      ctx.lineTo(CANVAS_WIDTH/2 + laneX * 20, CANVAS_HEIGHT);
+      ctx.lineTo(CANVAS_WIDTH/2 + laneX * 25, CANVAS_HEIGHT);
       ctx.stroke();
     }
 
@@ -197,70 +198,66 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     all.forEach(obj => {
       const scaleS = FOV / (FOV + obj.z);
       const scaleE = FOV / (FOV + obj.z + obj.length);
-      const laneX = (obj.lane - 1) * 160;
+      const laneX = (obj.lane - 1) * 165;
       
-      const xS = CANVAS_WIDTH / 2 + laneX * scaleS * 4.5;
-      const xE = CANVAS_WIDTH / 2 + laneX * scaleE * 4.5;
+      const xS = CANVAS_WIDTH / 2 + laneX * scaleS * 4.8;
+      const xE = CANVAS_WIDTH / 2 + laneX * scaleE * 4.8;
       const yS = HORIZON + (CANVAS_HEIGHT - HORIZON) * scaleS;
       const yE = HORIZON + (CANVAS_HEIGHT - HORIZON) * scaleE;
 
       if (obj.type === 'train' || obj.type === 'ramp') {
-        const wS = 150 * scaleS; const wE = 150 * scaleE;
+        const wS = 160 * scaleS; const wE = 160 * scaleE;
         const hS = TRAIN_HEIGHT * scaleS; const hE = TRAIN_HEIGHT * scaleE;
 
-        // Realistic Metal Body with Shading
-        const bodyGrad = ctx.createLinearGradient(xS, yS, xS, yS - hS);
-        bodyGrad.addColorStop(0, '#000000');
-        bodyGrad.addColorStop(1, obj.color);
-        ctx.fillStyle = bodyGrad;
-        
+        // Face latérale du train
+        ctx.fillStyle = '#000000';
         ctx.beginPath();
         ctx.moveTo(xS - wS/2, yS); ctx.lineTo(xE - wE/2, yE);
-        ctx.lineTo(xE + wE/2, yE); ctx.lineTo(xS + wS/2, yS);
+        ctx.lineTo(xE - wE/2, yE - hE); ctx.lineTo(xS - wS/2, yS - hS);
         ctx.fill();
-        
-        // Train Roof with Perspective
-        ctx.fillStyle = obj.climbable ? '#1d4ed8' : '#0f172a';
+
+        // Toit du train
+        ctx.fillStyle = obj.climbable ? '#2563eb' : '#1e1b4b';
         ctx.beginPath();
         ctx.moveTo(xS - wS/2, yS - hS); ctx.lineTo(xE - wE/2, yE - hE);
         ctx.lineTo(xE + wE/2, yE - hE); ctx.lineTo(xS + wS/2, yS - hS);
         ctx.fill();
-
-        // Front Face of the Train (Only if approaching)
-        if (obj.z > 0 && obj.z < 2000) {
-           ctx.fillStyle = '#000';
+        
+        // Face avant du train (volumétrie 3D)
+        if (obj.z > 0 && obj.z < 2500) {
+           ctx.fillStyle = '#050505';
            ctx.fillRect(xS - wS/2, yS - hS, wS, hS);
-           // Front Windows
-           ctx.fillStyle = 'rgba(0, 255, 255, 0.2)';
-           ctx.fillRect(xS - wS/2.5, yS - hS * 0.8, wS * 0.8, hS * 0.4);
+           // Vitre avant rétro-éclairée
+           ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
+           ctx.fillRect(xS - wS/2.5, yS - hS * 0.85, wS * 0.8, hS * 0.4);
         }
 
         if (obj.type === 'ramp') {
-           ctx.fillStyle = 'rgba(255,255,255,0.4)';
+           ctx.fillStyle = 'rgba(255,255,255,0.45)';
            ctx.beginPath();
-           ctx.moveTo(xS - wS/3, yS); ctx.lineTo(xS, yS - hS); ctx.lineTo(xS + wS/3, yS);
+           ctx.moveTo(xS - wS/2.5, yS); ctx.lineTo(xS, yS - hS); ctx.lineTo(xS + wS/2.5, yS);
            ctx.fill();
         }
       } else if (obj.type === 'barrier') {
-        const bW = 130 * scaleS; const bH = 70 * scaleS;
+        const bW = 140 * scaleS; const bH = 75 * scaleS;
         ctx.fillStyle = '#dc2626';
         ctx.fillRect(xS - bW/2, yS - bH, bW, bH);
         ctx.fillStyle = 'white';
-        ctx.fillRect(xS - bW/2, yS - (bH*0.75), bW, 8 * scaleS);
+        ctx.fillRect(xS - bW/2, yS - (bH*0.8), bW, 10 * scaleS);
       } else if (obj.type === 'coin') {
-        const cs = 50 * scaleS;
+        const cs = 55 * scaleS;
         ctx.fillStyle = '#fbbf24';
-        ctx.shadowBlur = 15; ctx.shadowColor = '#fbbf24';
-        ctx.beginPath(); ctx.arc(xS, yS - 60 * scaleS, cs/2, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 20; ctx.shadowColor = '#fbbf24';
+        ctx.beginPath(); ctx.arc(xS, yS - 65 * scaleS, cs/2, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
       }
     });
 
-    // Character with Z-Depth
+    // Personnage avec profondeur de champ
     const pScale = FOV / (FOV + 80);
-    const px = CANVAS_WIDTH / 2 + currentX.current * pScale * 1.8;
+    const px = CANVAS_WIDTH / 2 + currentX.current * pScale * 1.95;
     const py = (HORIZON + (CANVAS_HEIGHT - HORIZON) * pScale) - playerYOffset.current * pScale;
-    drawCharacter(ctx, px, py, pScale * 2.5);
+    drawCharacter(ctx, px, py, pScale * 2.6);
 
   }, [score, coins, isSliding]);
 
@@ -316,19 +313,19 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
       
       {gameOver && (
         <div className="absolute inset-0 bg-black/98 flex flex-col items-center justify-center p-12 text-center z-30 backdrop-blur-3xl">
-          <h2 className="text-9xl font-headline font-bold text-white tracking-tighter italic mb-12">BUSTED</h2>
+          <h2 className="text-9xl font-headline font-bold text-white tracking-tighter italic mb-12">TERMINE</h2>
           <div className="flex gap-10 mb-24">
              <div className="bg-white/5 px-14 py-12 rounded-3xl border border-white/10">
                 <p className="text-6xl font-bold">{Math.floor(score / 10)}M</p>
-                <p className="text-sm uppercase text-white/40 mt-3 tracking-widest">Run</p>
+                <p className="text-sm uppercase text-white/40 mt-3 tracking-widest">Parcouru</p>
              </div>
              <div className="bg-white/5 px-14 py-12 rounded-3xl border border-white/10">
                 <p className="text-6xl font-bold text-yellow-500">{coins}</p>
-                <p className="text-sm uppercase text-white/40 mt-3 tracking-widest">Bank</p>
+                <p className="text-sm uppercase text-white/40 mt-3 tracking-widest">Butin</p>
              </div>
           </div>
           <Button onClick={initGame} size="lg" className="rounded-3xl px-24 py-16 text-5xl font-bold bg-primary hover:scale-110 transition-transform shadow-2xl shadow-primary/50">
-            RUN AGAIN
+            RELANCER
           </Button>
         </div>
       )}
