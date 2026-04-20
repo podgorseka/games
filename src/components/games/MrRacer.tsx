@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Zap, Target } from 'lucide-react';
+import { RotateCcw, Zap } from 'lucide-react';
 
 export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: number) => void, isMobile: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -18,8 +18,8 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   
   const playerX = useRef(0);
   const targetX = useRef(0);
-  const playerSpeed = useRef(0.1); // Vitesse actuelle du joueur
-  const targetSpeed = useRef(0.1);
+  const playerSpeed = useRef(0.12);
+  const targetSpeed = useRef(0.12);
   const enemies = useRef<{ x: number, z: number, speed: number, color: string, type: string }[]>([]);
   const roadOffset = useRef(0);
   const keys = useRef<{ [key: string]: boolean }>({});
@@ -27,8 +27,8 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const initGame = useCallback(() => {
     playerX.current = 0;
     targetX.current = 0;
-    playerSpeed.current = 0.1;
-    targetSpeed.current = 0.1;
+    playerSpeed.current = 0.12;
+    targetSpeed.current = 0.12;
     enemies.current = [];
     roadOffset.current = 0;
     setScore(0);
@@ -36,109 +36,108 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   }, []);
 
   const spawnEnemy = useCallback(() => {
-    // Densité réduite : un seul véhicule à la fois si la voie est dégagée devant
-    if (enemies.current.filter(e => e.z > 1000).length > 0) return;
+    if (enemies.current.filter(e => e.z > 2000).length > 1) return;
 
-    const laneX = (Math.floor(Math.random() * 3) - 1) * 90;
-    const colors = ['#1e40af', '#dc2626', '#059669', '#d97706', '#4b5563'];
+    const lanes = [-110, 0, 110];
+    const laneX = lanes[Math.floor(Math.random() * lanes.length)];
+    const colors = ['#1e40af', '#dc2626', '#059669', '#d97706', '#4b5563', '#ffffff'];
     enemies.current.push({
       x: laneX,
-      z: 3000,
-      // Les ennemis vont moins vite que le joueur (pour être doublés)
-      speed: 0.04 + Math.random() * 0.03, 
+      z: 3500,
+      speed: 0.05 + Math.random() * 0.04, 
       color: colors[Math.floor(Math.random() * colors.length)],
-      type: Math.random() > 0.8 ? 'truck' : 'car'
+      type: Math.random() > 0.85 ? 'truck' : 'car'
     });
   }, []);
 
   const update = useCallback(() => {
     if (gameOver) return;
 
-    // Contrôles de direction
-    if (keys.current['ArrowLeft'] || keys.current['a']) targetX.current -= 8;
-    if (keys.current['ArrowRight'] || keys.current['d']) targetX.current += 8;
+    // Movement
+    if (keys.current['ArrowLeft'] || keys.current['a'] || keys.current['LeftTouch']) targetX.current -= 12;
+    if (keys.current['ArrowRight'] || keys.current['d'] || keys.current['RightTouch']) targetX.current += 12;
 
-    // Gestion de la vitesse (Pédales)
-    if (keys.current['Accel']) targetSpeed.current = Math.min(0.25, targetSpeed.current + 0.002);
-    else if (keys.current['Brake']) targetSpeed.current = Math.max(0.05, targetSpeed.current - 0.004);
-    else targetSpeed.current = Math.max(0.1, targetSpeed.current - 0.001); // Décélération naturelle
+    // Speed Control
+    if (keys.current['Accel']) targetSpeed.current = Math.min(0.28, targetSpeed.current + 0.003);
+    else if (keys.current['Brake']) targetSpeed.current = Math.max(0.06, targetSpeed.current - 0.006);
+    else targetSpeed.current = Math.max(0.12, targetSpeed.current - 0.001);
 
-    playerSpeed.current += (targetSpeed.current - playerSpeed.current) * 0.1;
+    playerSpeed.current += (targetSpeed.current - playerSpeed.current) * 0.12;
 
-    // Interpolation position joueur
-    playerX.current += (targetX.current - playerX.current) * 0.15;
-    targetX.current = Math.max(-150, Math.min(150, targetX.current));
-    playerX.current = Math.max(-150, Math.min(150, playerX.current));
+    playerX.current += (targetX.current - playerX.current) * 0.2;
+    targetX.current = Math.max(-160, Math.min(160, targetX.current));
+    playerX.current = Math.max(-160, Math.min(160, playerX.current));
 
-    // Mouvement de la route
-    roadOffset.current = (roadOffset.current + playerSpeed.current * 80) % 100;
-    setScore(s => s + Math.floor(playerSpeed.current * 10));
+    roadOffset.current = (roadOffset.current + playerSpeed.current * 90) % 200;
+    setScore(s => s + Math.floor(playerSpeed.current * 15));
 
-    // Spawn
-    if (Math.random() < 0.015) spawnEnemy();
+    if (Math.random() < 0.012) spawnEnemy();
     
-    // Mise à jour des ennemis (Dépassement)
     enemies.current.forEach(e => {
-      // La vitesse relative : si playerSpeed > e.speed, l'ennemi se rapproche de nous (Z diminue)
-      const relativeSpeed = (playerSpeed.current - e.speed) * 180;
+      const relativeSpeed = (playerSpeed.current - e.speed) * 190;
       e.z -= relativeSpeed;
 
-      // Collision
-      if (e.z > -10 && e.z < 70) {
+      // Improved Collision Box
+      const carW = e.type === 'truck' ? 75 : 55;
+      const carL = 80;
+      if (e.z > -20 && e.z < 60) {
         const dist = Math.abs(e.x - playerX.current);
-        const hitWidth = e.type === 'truck' ? 80 : 70;
-        if (dist < hitWidth) setGameOver(true);
+        if (dist < carW) {
+          setGameOver(true);
+        }
       }
     });
 
-    enemies.current = enemies.current.filter(e => e.z > -500);
+    enemies.current = enemies.current.filter(e => e.z > -1000);
   }, [gameOver, spawnEnemy]);
 
   const drawCar = (ctx: CanvasRenderingContext2D, x: number, z: number, color: string, isPlayer: boolean = false, type: string = 'car') => {
     const scale = FOV / (FOV + z);
-    const screenX = CANVAS_WIDTH / 2 + (x - (isPlayer ? 0 : playerX.current)) * scale * 4.2;
+    const screenX = CANVAS_WIDTH / 2 + (x - (isPlayer ? 0 : playerX.current)) * scale * 4.5;
     const screenY = HORIZON + (CANVAS_HEIGHT - HORIZON) * scale;
     
-    if (screenY < HORIZON || scale < 0.02) return;
+    if (screenY < HORIZON || scale < 0.01) return;
 
-    const carW = (type === 'truck' ? 160 : 130) * scale;
-    const carH = (type === 'truck' ? 120 : 90) * scale;
+    const carW = (type === 'truck' ? 180 : 140) * scale;
+    const carH = (type === 'truck' ? 140 : 100) * scale;
+    const depth = (type === 'truck' ? 100 : 60) * scale;
 
     ctx.save();
     ctx.translate(screenX, screenY);
     
-    // Ombre portée
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.beginPath();
-    ctx.ellipse(0, 0, carW * 0.6, carH * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, carW * 0.65, carH * 0.25, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Carrosserie
+    // Body (Rear face)
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.roundRect(-carW/2, -carH, carW, carH, 15 * scale);
+    ctx.roundRect(-carW/2, -carH, carW, carH, 12 * scale);
     ctx.fill();
 
-    // Reflets
-    const grad = ctx.createLinearGradient(-carW/2, -carH, carW/2, -carH);
-    grad.addColorStop(0, 'rgba(255,255,255,0)');
-    grad.addColorStop(0.5, 'rgba(255,255,255,0.2)');
-    grad.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(-carW/2, -carH, carW, carH * 0.4);
+    // Top face (Perspective)
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath();
+    ctx.moveTo(-carW/2, -carH);
+    ctx.lineTo(carW/2, -carH);
+    ctx.lineTo(carW/2.5, -carH - depth);
+    ctx.lineTo(-carW/2.5, -carH - depth);
+    ctx.fill();
 
-    // Vitre arrière
+    // Windshield
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
-    ctx.roundRect(-carW/2.5, -carH * 0.9, (carW/2.5)*2, carH * 0.4, 5 * scale);
+    ctx.roundRect(-carW/3, -carH * 0.9, (carW/3)*2, carH * 0.45, 6 * scale);
     ctx.fill();
 
-    // Feux ARRIÈRE rouges (On suit tout le monde)
-    ctx.fillStyle = '#ff0000';
-    ctx.shadowBlur = 20 * scale;
+    // Tail lights
+    ctx.shadowBlur = 25 * scale;
     ctx.shadowColor = '#ff0000';
-    ctx.fillRect(-carW/2 + 8, -carH * 0.6, 20 * scale, 12 * scale);
-    ctx.fillRect(carW/2 - 28, -carH * 0.6, 20 * scale, 12 * scale);
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(-carW/2 + 8 * scale, -carH * 0.6, 25 * scale, 15 * scale);
+    ctx.fillRect(carW/2 - 33 * scale, -carH * 0.6, 25 * scale, 15 * scale);
 
     ctx.restore();
   };
@@ -146,44 +145,55 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Ciel
+    // Sky
     const sky = ctx.createLinearGradient(0, 0, 0, HORIZON);
     sky.addColorStop(0, '#020617');
-    sky.addColorStop(1, '#0f172a');
+    sky.addColorStop(0.8, '#0f172a');
+    sky.addColorStop(1, '#1e293b');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
 
-    // Route
+    // Distant City Lights (Simple bokeh)
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    for(let i=0; i<10; i++) {
+        ctx.beginPath();
+        ctx.arc(i*80 + Math.sin(Date.now()/1000)*10, HORIZON - 20, 2, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    // Road
     ctx.fillStyle = '#020617';
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
 
-    // Marquages rails/voies
+    // Lanes
     ctx.strokeStyle = 'rgba(255,255,255,0.1)';
     ctx.lineWidth = 2;
-    for (let i = -1.5; i <= 1.5; i++) {
-       const laneX = i * 140;
+    for (let i = -2; i <= 2; i++) {
+       const laneX = i * 160;
        ctx.beginPath();
        ctx.moveTo(CANVAS_WIDTH/2, HORIZON);
-       ctx.lineTo(CANVAS_WIDTH/2 + (laneX * 6) - playerX.current * 6, CANVAS_HEIGHT);
+       ctx.lineTo(CANVAS_WIDTH/2 + (laneX * 8) - playerX.current * 8, CANVAS_HEIGHT);
        ctx.stroke();
     }
 
-    // Lignes discontinues en mouvement
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    for (let i = 0; i < 15; i++) {
-      const z = i * 150 - roadOffset.current;
+    // Moving Dashes
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    for (let i = 0; i < 12; i++) {
+      const z = i * 200 - roadOffset.current;
       if (z < 0) continue;
       const scale = FOV / (FOV + z);
       const y = HORIZON + (CANVAS_HEIGHT - HORIZON) * scale;
-      const dashW = 10 * scale;
-      const dashL = 60 * scale;
-      const xL = CANVAS_WIDTH/2 - (70 * scale * 6) - (playerX.current * scale * 4.2);
-      const xR = CANVAS_WIDTH/2 + (70 * scale * 6) - (playerX.current * scale * 4.2);
-      ctx.fillRect(xL - dashW/2, y, dashW, dashL);
-      ctx.fillRect(xR - dashW/2, y, dashW, dashL);
+      const dashW = 12 * scale;
+      const dashL = 80 * scale;
+      
+      const lanes = [-80, 80];
+      lanes.forEach(lx => {
+          const x = CANVAS_WIDTH/2 + (lx * scale * 5) - (playerX.current * scale * 4.5);
+          ctx.fillRect(x - dashW/2, y, dashW, dashL);
+      });
     }
 
-    // Entités
+    // Entities
     const all = [...enemies.current].sort((a, b) => b.z - a.z);
     all.forEach(e => drawCar(ctx, e.x, e.z, e.color, false, e.type));
     drawCar(ctx, playerX.current, 50, '#C41DFA', true);
@@ -197,18 +207,6 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     gameLoopRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(gameLoopRef.current);
   }, [update, draw]);
-
-  const handlePointer = (clientX: number, isDown: boolean) => {
-    if (gameOver) return;
-    const mid = window.innerWidth / 2;
-    if (isDown) {
-      if (clientX < mid) keys.current['ArrowLeft'] = true;
-      else keys.current['ArrowRight'] = true;
-    } else {
-      keys.current['ArrowLeft'] = false;
-      keys.current['ArrowRight'] = false;
-    }
-  };
 
   useEffect(() => {
     const handleDown = (e: KeyboardEvent) => {
@@ -228,13 +226,29 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
   useEffect(() => { if (gameOver) onGameOver(Math.floor(score / 10)); }, [gameOver, score, onGameOver]);
 
+  const handleTouch = (side: 'left' | 'right', isDown: boolean) => {
+      if (side === 'left') keys.current['LeftTouch'] = isDown;
+      else keys.current['RightTouch'] = isDown;
+  }
+
   return (
-    <div 
-        className="relative w-full h-full flex flex-col items-center justify-center bg-[#020617] overflow-hidden touch-none select-none"
-        onPointerDown={(e) => handlePointer(e.clientX, true)}
-        onPointerUp={() => handlePointer(0, false)}
-    >
-      {/* Score HUD */}
+    <div className="relative w-full h-full flex flex-col items-center justify-center bg-[#020617] overflow-hidden touch-none select-none">
+      <div 
+        className="absolute inset-0 z-10 flex"
+        onPointerLeave={() => { keys.current['LeftTouch'] = false; keys.current['RightTouch'] = false; }}
+      >
+          <div 
+            className="flex-1" 
+            onPointerDown={() => handleTouch('left', true)} 
+            onPointerUp={() => handleTouch('left', false)} 
+          />
+          <div 
+            className="flex-1" 
+            onPointerDown={() => handleTouch('right', true)} 
+            onPointerUp={() => handleTouch('right', false)} 
+          />
+      </div>
+
       <div className="absolute top-12 left-12 flex flex-col items-start z-20 pointer-events-none">
         <div className="text-8xl font-headline font-bold text-white tracking-tighter italic drop-shadow-2xl">
           {Math.floor(score / 10)} <span className="text-2xl text-primary">KM</span>
@@ -244,39 +258,37 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
         </div>
       </div>
 
-      <canvas ref={canvasRef} width={400} height={600} className="w-full h-auto max-h-[95vh] shadow-2xl" />
+      <canvas ref={canvasRef} width={400} height={600} className="w-full h-auto max-h-[95vh]" />
 
-      {/* Pédales Virtuelles (Touch) */}
       {!gameOver && (
           <div className="absolute bottom-12 inset-x-8 flex justify-between z-30 pointer-events-none">
               <div 
-                  className="w-24 h-32 bg-white/5 border-2 border-white/10 rounded-2xl flex flex-col items-center justify-center pointer-events-auto active:bg-red-500/20 active:border-red-500/50 transition-colors"
+                  className="w-20 h-28 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center pointer-events-auto active:bg-red-500/20 active:border-red-500/40 transition-colors"
                   onPointerDown={() => keys.current['Brake'] = true}
                   onPointerUp={() => keys.current['Brake'] = false}
                   onPointerLeave={() => keys.current['Brake'] = false}
               >
-                  <div className="text-white/40 text-[10px] font-bold uppercase mb-2">Brake</div>
-                  <div className="w-12 h-1 bg-white/20 rounded-full" />
+                  <div className="text-white/30 text-[10px] font-bold uppercase mb-1">Brake</div>
+                  <div className="w-10 h-1 bg-white/10 rounded-full" />
               </div>
 
               <div 
-                  className="w-24 h-40 bg-white/5 border-2 border-white/10 rounded-2xl flex flex-col items-center justify-center pointer-events-auto active:bg-primary/20 active:border-primary/50 transition-colors"
+                  className="w-20 h-36 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center pointer-events-auto active:bg-primary/20 active:border-primary/40 transition-colors"
                   onPointerDown={() => keys.current['Accel'] = true}
                   onPointerUp={() => keys.current['Accel'] = false}
                   onPointerLeave={() => keys.current['Accel'] = false}
               >
-                  <div className="text-white/40 text-[10px] font-bold uppercase mb-2">Accel</div>
-                  <div className="w-8 h-20 bg-primary/20 rounded-lg border border-primary/30" />
+                  <div className="text-white/30 text-[10px] font-bold uppercase mb-1">Accel</div>
+                  <div className="w-6 h-16 bg-primary/10 rounded-lg border border-primary/20" />
               </div>
           </div>
       )}
 
-      {/* Game Over Screen */}
       {gameOver && (
         <div className="absolute inset-0 bg-black/98 flex flex-col items-center justify-center p-12 text-center z-50 backdrop-blur-3xl">
           <h2 className="text-9xl font-headline font-bold text-destructive mb-8 tracking-tighter italic">CRASH</h2>
           <p className="text-2xl text-white/50 mb-16 uppercase tracking-[0.6em]">Score : {Math.floor(score / 10)} KM</p>
-          <Button onClick={initGame} size="lg" className="rounded-3xl px-24 py-14 text-4xl font-bold bg-primary hover:scale-110 transition-transform shadow-2xl shadow-primary/50">
+          <Button onClick={initGame} size="lg" className="rounded-3xl px-24 py-14 text-4xl font-bold bg-primary hover:scale-110 transition-transform shadow-2xl">
             REESSAYER
           </Button>
         </div>
@@ -284,3 +296,4 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     </div>
   );
 }
+
