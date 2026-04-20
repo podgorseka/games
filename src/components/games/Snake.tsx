@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 type Point = { x: number; y: number };
 
@@ -17,6 +17,7 @@ export default function Snake({ onGameOver, isMobile }: { onGameOver: (score: nu
   const directionRef = useRef<Point>({ x: 0, y: -1 });
   const lastUpdateRef = useRef(0);
   const requestRef = useRef<number>(0);
+  const touchStartRef = useRef<Point | null>(null);
 
   const moveSnake = useCallback(() => {
     setSnake((prevSnake) => {
@@ -62,6 +63,7 @@ export default function Snake({ onGameOver, isMobile }: { onGameOver: (score: nu
     directionRef.current = newDir;
   }, []);
 
+  // Keyboard controls
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowUp') updateDirection({ x: 0, y: -1 });
@@ -72,6 +74,33 @@ export default function Snake({ onGameOver, isMobile }: { onGameOver: (score: nu
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [updateDirection]);
+
+  // Touch controls (Swipe)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current || gameOver) return;
+    
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchStartRef.current.x;
+    const dy = touch.clientY - touchStartRef.current.y;
+
+    // Minimum distance to trigger a move
+    const threshold = 30;
+
+    if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+      if (Math.abs(dx) > Math.abs(dy)) {
+        updateDirection({ x: dx > 0 ? 1 : -1, y: 0 });
+      } else {
+        updateDirection({ x: 0, y: dy > 0 ? 1 : -1 });
+      }
+      // Reset start to allow multiple swipes without lifting finger
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    }
+  };
 
   useEffect(() => { if (gameOver) onGameOver(score); }, [gameOver, score, onGameOver]);
 
@@ -84,30 +113,51 @@ export default function Snake({ onGameOver, isMobile }: { onGameOver: (score: nu
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full h-full justify-center p-4">
+    <div className="flex flex-col items-center gap-6 w-full h-full justify-center p-4 touch-none select-none">
       <div className="text-4xl font-bold font-headline text-primary">Score: {score}</div>
-      <div className="relative bg-muted/20 border-4 border-primary rounded-2xl overflow-hidden shadow-2xl" style={{ width: 'min(90vw, 400px)', height: 'min(90vw, 400px)', display: 'grid', gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)` }}>
+      <div 
+        className="relative bg-muted/20 border-4 border-primary rounded-2xl overflow-hidden shadow-2xl" 
+        style={{ 
+          width: 'min(90vw, 400px)', 
+          height: 'min(90vw, 400px)', 
+          display: 'grid', 
+          gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, 
+          gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)` 
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+      >
         {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
           const x = i % GRID_SIZE; const y = Math.floor(i / GRID_SIZE);
           const isSnake = snake.some(s => s.x === x && s.y === y);
           const isFood = food.x === x && food.y === y;
           const isHead = snake[0].x === x && snake[0].y === y;
-          return <div key={i} className={`w-full h-full rounded-sm ${isHead ? 'bg-primary z-10' : isSnake ? 'bg-primary/40' : isFood ? 'bg-secondary animate-pulse scale-90 rounded-full' : 'border-[0.5px] border-primary/5'}`} />;
+          return (
+            <div 
+              key={i} 
+              className={`w-full h-full rounded-sm ${
+                isHead ? 'bg-primary z-10' : 
+                isSnake ? 'bg-primary/40' : 
+                isFood ? 'bg-secondary animate-pulse scale-90 rounded-full' : 
+                'border-[0.5px] border-primary/5'
+              }`} 
+            />
+          );
         })}
         {gameOver && (
           <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center p-4 text-center z-20 backdrop-blur-sm">
             <h2 className="text-5xl font-headline font-bold text-destructive mb-2">GAME OVER</h2>
-            <Button onClick={reset} size="lg" className="rounded-full px-12 py-8 text-xl font-bold shadow-xl"><RotateCcw className="mr-3 h-6 w-6" /> Restart</Button>
+            <Button onClick={reset} size="lg" className="rounded-full px-12 py-8 text-xl font-bold shadow-xl">
+              <RotateCcw className="mr-3 h-6 w-6" /> Rejouer
+            </Button>
           </div>
         )}
       </div>
-      {isMobile && !gameOver && (
-        <div className="grid grid-cols-3 gap-2 w-full max-w-[280px] mt-4">
-          <div /><Button variant="outline" size="icon" className="h-16 w-16" onTouchStart={() => updateDirection({ x: 0, y: -1 })}><ArrowUp /></Button><div />
-          <Button variant="outline" size="icon" className="h-16 w-16" onTouchStart={() => updateDirection({ x: -1, y: 0 })}><ArrowLeft /></Button>
-          <Button variant="outline" size="icon" className="h-16 w-16" onTouchStart={() => updateDirection({ x: 0, y: 1 })}><ArrowDown /></Button>
-          <Button variant="outline" size="icon" className="h-16 w-16" onTouchStart={() => updateDirection({ x: 1, y: 0 })}><ArrowRight /></Button>
-        </div>
+      
+      {!gameOver && (
+        <p className="text-muted-foreground text-sm font-medium animate-pulse">
+          {isMobile ? "Glissez votre doigt pour diriger le serpent" : "Utilisez les flèches du clavier"}
+        </p>
       )}
     </div>
   );

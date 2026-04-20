@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, ArrowDown, RotateCw, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 const COLS = 10;
 const ROWS = 20;
@@ -26,6 +26,7 @@ export default function Tetris({ onGameOver, isMobile }: { onGameOver: (score: n
   const lastTimeRef = useRef(0);
   const dropCounterRef = useRef(0);
   const requestRef = useRef<number>(0);
+  const touchStartRef = useRef<{ x: number, y: number, col: number } | null>(null);
 
   const collide = (grid: any[][], piece: any) => {
     for (let y = 0; y < piece.shape.length; y++) {
@@ -97,18 +98,18 @@ export default function Tetris({ onGameOver, isMobile }: { onGameOver: (score: n
     return () => cancelAnimationFrame(requestRef.current);
   }, [animate, currentPiece, spawnPiece, gameOver]);
 
-  const move = (dir: number) => setCurrentPiece((p: any) => { 
+  const move = useCallback((dir: number) => setCurrentPiece((p: any) => { 
     if (!p || gameOver) return p; 
     const n = { ...p, pos: { ...p.pos, x: p.pos.x + dir } }; 
     return collide(grid, n) ? p : n; 
-  });
+  }), [grid, gameOver]);
   
-  const rotate = () => setCurrentPiece((p: any) => { 
+  const rotate = useCallback(() => setCurrentPiece((p: any) => { 
     if (!p || gameOver) return p; 
     const r = p.shape[0].map((_: any, i: number) => p.shape.map((row: any) => row[i]).reverse()); 
     const n = { ...p, shape: r }; 
     return collide(grid, n) ? p : n; 
-  });
+  }), [grid, gameOver]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -119,7 +120,59 @@ export default function Tetris({ onGameOver, isMobile }: { onGameOver: (score: n
     };
     window.addEventListener('keydown', handleKey); 
     return () => window.removeEventListener('keydown', handleKey);
-  }, [drop]);
+  }, [drop, move, rotate]);
+
+  // Touch Handling
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const rect = e.currentTarget.getBoundingClientRect();
+    const cellWidth = rect.width / COLS;
+    const col = Math.floor((touch.clientX - rect.left) / cellWidth);
+    
+    touchStartRef.current = { 
+      x: touch.clientX, 
+      y: touch.clientY,
+      col: col
+    };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current || !currentPiece || gameOver) return;
+    
+    const touch = e.touches[0];
+    const rect = e.currentTarget.getBoundingClientRect();
+    const cellWidth = rect.width / COLS;
+    const currentCol = Math.floor((touch.clientX - rect.left) / cellWidth);
+    const dy = touch.clientY - touchStartRef.current.y;
+
+    // Horizontal drag to move piece
+    if (currentCol !== touchStartRef.current.col) {
+      const diff = currentCol - touchStartRef.current.col;
+      move(diff);
+      touchStartRef.current.col = currentCol;
+    }
+
+    // Vertical swipe down to drop
+    if (dy > 50) {
+      drop();
+      touchStartRef.current.y = touch.clientY; // Reset to avoid multiple drops in one swipe
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    
+    const touch = e.changedTouches[0];
+    const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+    const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+
+    // If it was a simple tap (very little movement), rotate
+    if (dx < 10 && dy < 10) {
+      rotate();
+    }
+    
+    touchStartRef.current = null;
+  };
 
   useEffect(() => { if (gameOver) onGameOver(score); }, [gameOver, score, onGameOver]);
 
@@ -132,9 +185,20 @@ export default function Tetris({ onGameOver, isMobile }: { onGameOver: (score: n
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full h-full justify-center p-4">
+    <div className="flex flex-col items-center gap-6 w-full h-full justify-center p-4 touch-none select-none">
       <div className="text-4xl font-bold font-headline text-primary">Score: {score}</div>
-      <div className="relative bg-muted/20 border-4 border-primary rounded-2xl overflow-hidden shadow-2xl p-1" style={{ width: 'min(70vw, 300px)', height: 'min(140vw, 600px)', display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
+      <div 
+        className="relative bg-muted/20 border-4 border-primary rounded-2xl overflow-hidden shadow-2xl p-1" 
+        style={{ 
+          width: 'min(70vw, 300px)', 
+          height: 'min(140vw, 600px)', 
+          display: 'grid', 
+          gridTemplateColumns: `repeat(${COLS}, 1fr)` 
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         {grid.map((row, y) => row.map((cell, x) => {
           let color = cell; 
           if (currentPiece) { 
@@ -161,13 +225,11 @@ export default function Tetris({ onGameOver, isMobile }: { onGameOver: (score: n
           </div>
         )}
       </div>
-      {isMobile && !gameOver && (
-        <div className="grid grid-cols-4 gap-2 w-full max-w-sm mt-4">
-          <Button variant="outline" className="h-16 rounded-xl" onTouchStart={() => move(-1)}><ArrowLeft /></Button>
-          <Button variant="outline" className="h-16 rounded-xl" onTouchStart={() => move(1)}><ArrowRight /></Button>
-          <Button variant="outline" className="h-16 rounded-xl" onTouchStart={rotate}><RotateCw /></Button>
-          <Button variant="outline" className="h-16 rounded-xl" onTouchStart={drop}><ArrowDown /></Button>
-        </div>
+
+      {!gameOver && (
+        <p className="text-muted-foreground text-sm font-medium animate-pulse text-center max-w-xs">
+          {isMobile ? "Glissez horizontalement pour déplacer, vers le bas pour tomber, touchez pour pivoter" : "Flèches du clavier : Déplacer, Chute, Pivoter"}
+        </p>
       )}
     </div>
   );
