@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -44,11 +43,13 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
       const touchY = clientY - rect.top;
       const touchX = clientX - rect.left;
       
+      // Facteur d'échelle pour correspondre aux dimensions internes (800x500)
       const scaleY = 500 / rect.height;
       const scaledY = touchY * scaleY - paddleH / 2;
       const clampedY = Math.max(0, Math.min(500 - paddleH, scaledY));
 
       if (isTwoPlayer) {
+        // En mode 2 joueurs, on divise l'écran en deux
         if (touchX < rect.width / 2) {
           playerY.current = clampedY;
         } else {
@@ -63,17 +64,17 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
   const update = useCallback(() => {
     if (gameOver) return;
 
+    // Keyboard controls
     if (keysPressed.current['w']) playerY.current = Math.max(0, playerY.current - paddleSpeed);
     if (keysPressed.current['s']) playerY.current = Math.min(500 - paddleH, playerY.current + paddleSpeed);
-    if (keysPressed.current['arrowup']) playerY.current = Math.max(0, playerY.current - paddleSpeed);
-    if (keysPressed.current['arrowdown']) playerY.current = Math.min(500 - paddleH, playerY.current + paddleSpeed);
-
+    
     if (isTwoPlayer) {
-      if (keysPressed.current['o']) aiY.current = Math.max(0, aiY.current - paddleSpeed);
-      if (keysPressed.current['l']) aiY.current = Math.min(500 - paddleH, aiY.current + paddleSpeed);
+      if (keysPressed.current['arrowup'] || keysPressed.current['o']) aiY.current = Math.max(0, aiY.current - paddleSpeed);
+      if (keysPressed.current['arrowdown'] || keysPressed.current['l']) aiY.current = Math.min(500 - paddleH, aiY.current + paddleSpeed);
     } else {
+      // AI simple
       const aiTarget = ball.current.y - paddleH / 2;
-      const aiSpeed = 4.5 + (score / 1500);
+      const aiSpeed = 4.5 + (score / 1500); // L'IA devient plus forte avec le score
       const diff = aiTarget - aiY.current;
       aiY.current += Math.sign(diff) * Math.min(Math.abs(diff), aiSpeed);
       aiY.current = Math.max(0, Math.min(500 - paddleH, aiY.current));
@@ -82,10 +83,13 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
     ball.current.x += ball.current.vx;
     ball.current.y += ball.current.vy;
 
+    // Walls
     if (ball.current.y <= 10 || ball.current.y >= 490) ball.current.vy *= -1;
 
+    // Paddles
     const ballRadius = 10;
     
+    // Player Paddle
     if (ball.current.x <= 20 + paddleW + ballRadius && 
         ball.current.y >= playerY.current && 
         ball.current.y <= playerY.current + paddleH && 
@@ -96,6 +100,7 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
       ball.current.vy = impact * 8;
     }
 
+    // AI/P2 Paddle
     if (ball.current.x >= 780 - paddleW - ballRadius && 
         ball.current.y >= aiY.current && 
         ball.current.y <= aiY.current + paddleH && 
@@ -106,6 +111,7 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
       ball.current.vy = impact * 8;
     }
 
+    // Score / Game Over
     if (ball.current.x < -20 || ball.current.x > 820) {
       setGameOver(true);
     }
@@ -116,12 +122,14 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
     ctx.fillStyle = '#FDFCFE';
     ctx.fillRect(0, 0, 800, 500);
     
+    // Filet
     ctx.setLineDash([15, 15]);
     ctx.strokeStyle = '#2600CC22';
     ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(400, 0); ctx.lineTo(400, 500); ctx.stroke();
     ctx.setLineDash([]);
 
+    // Paddles
     ctx.fillStyle = '#2600CC';
     ctx.shadowBlur = 10;
     ctx.shadowColor = '#2600CC44';
@@ -135,6 +143,7 @@ export default function Pong({ onGameOver, isMobile }: { onGameOver: (score: num
     drawPaddle(20, playerY.current);
     drawPaddle(780 - paddleW, aiY.current);
     
+    // Ball
     ctx.fillStyle = '#FA1D64';
     ctx.shadowBlur = 15;
     ctx.shadowColor = '#FA1D6466';

@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -111,7 +110,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
   const findNearestValidPosition = (piece: any, targetRow: number, targetCol: number) => {
     let bestPos = null;
     let minDistance = Infinity;
-    const searchRange = 2;
+    const searchRange = 2; // Rayon de recherche pour le snapping intelligent
 
     for (let r = targetRow - searchRange; r <= targetRow + searchRange; r++) {
       for (let c = targetCol - searchRange; c <= targetCol + searchRange; c++) {
@@ -148,7 +147,9 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       });
     });
 
+    // Score de base pour le placement
     let moveScore = blocksPlaced * 10;
+    
     const rowsToClear: number[] = [];
     const colsToClear: number[] = [];
     for (let r = 0; r < GRID_SIZE; r++) if (newGrid[r].every(cell => cell !== '')) rowsToClear.push(r);
@@ -156,11 +157,15 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
 
     if (rowsToClear.length > 0 || colsToClear.length > 0) {
       setClearingLines({ rows: rowsToClear, cols: colsToClear });
+      
+      // Attente de 0.1s avant de supprimer les lignes
       setTimeout(() => {
         rowsToClear.forEach(r => newGrid[r] = Array(GRID_SIZE).fill(''));
         colsToClear.forEach(c => newGrid.forEach(row => row[c] = ''));
 
         moveScore += (rowsToClear.length + colsToClear.length) * 100;
+        
+        // Bonus Perfect Clear: x2 si la grille est vide
         const isEmpty = newGrid.every(row => row.every(cell => cell === ''));
         if (isEmpty) moveScore *= 2;
 
@@ -169,7 +174,7 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
         setGrid(newGrid);
         setClearingLines({ rows: [], cols: [] });
         finishTurn(pieceId, newGrid);
-      }, 150);
+      }, 100);
     } else {
       scoreRef.current += moveScore;
       setScore(scoreRef.current);
@@ -219,6 +224,8 @@ export default function BlockBlast({ onGameOver, isMobile }: { onGameOver: (scor
       
       const hoveredCol = Math.floor(gridX / cellSize);
       const hoveredRow = Math.floor(gridY / cellSize);
+      
+      // Placement basé sur le centre de la pièce pour que ça suive bien le doigt
       const startRow = hoveredRow - Math.floor(draggingPiece.shape.length / 2);
       const startCol = hoveredCol - Math.floor(draggingPiece.shape[0].length / 2);
       

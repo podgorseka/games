@@ -1,4 +1,3 @@
-
 "use client"
 
 import React from 'react';
@@ -25,6 +24,7 @@ export default function Leaderboard() {
     const grouped: Record<string, ScoreEntry[]> = {};
     
     GAME_IDS.forEach(id => {
+      // On prend seulement les 3 meilleurs scores par jeu
       grouped[id] = allScores
         .filter(s => s.gameId === id)
         .sort((a, b) => b.score - a.score)

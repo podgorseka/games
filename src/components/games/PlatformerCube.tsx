@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -64,7 +63,8 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
           type: Math.random() > 0.5 ? 'spike' : 'block'
         });
       }
-      // Powerup generation - reduced frequency (from 0.01 to 0.003)
+      
+      // Powerup arc-en-ciel - rare (0.3%)
       if (Math.random() < 0.003) {
         powerups.current.push({
           x: 900,
@@ -79,7 +79,6 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
     obstacles.current = obstacles.current.filter(o => o.x > -100);
     obstacles.current.forEach(o => {
       o.x -= speed;
-      // Collision detection
       if (!isInvincible &&
         o.x < 100 + 40 &&
         o.x + o.w > 100 &&
@@ -120,7 +119,7 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
     ctx.fillStyle = '#2600CC';
     ctx.fillRect(0, groundY, 800, 100);
 
-    // Player
+    // Player (avec visage)
     const px = 100;
     const py = playerY.current;
     const size = 40;
@@ -141,9 +140,9 @@ export default function PlatformerCube({ onGameOver, isMobile }: { onGameOver: (
 
     // Face
     ctx.fillStyle = 'white';
-    ctx.fillRect(px + 22, py + 10, 6, 6);
-    ctx.fillRect(px + 10, py + 10, 6, 6);
-    ctx.fillRect(px + 12, py + 24, 16, 4);
+    ctx.fillRect(px + 22, py + 10, 6, 6); // Oeil droit
+    ctx.fillRect(px + 10, py + 10, 6, 6); // Oeil gauche
+    ctx.fillRect(px + 12, py + 24, 16, 4); // Bouche
     ctx.restore();
 
     // Powerups (Rainbow Cubes)
