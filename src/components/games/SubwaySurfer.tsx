@@ -115,7 +115,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
 
     obstacles.current.forEach(obj => {
       obj.z -= gameSpeed.current * 12;
-      // Precision hit detection
       if (obj.lane === playerLane.current && obj.z < 120 && (obj.z + obj.length) > 30) {
         if (obj.type === 'ramp' && playerYOffset.current < TRAIN_HEIGHT - 30) {
            playerYOffset.current += (TRAIN_HEIGHT - playerYOffset.current) * 0.4;
@@ -150,7 +149,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath(); ctx.ellipse(0, 5, 20, 6, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Hoodie & Backpack
     ctx.fillStyle = '#f8fafc'; 
     ctx.beginPath(); ctx.roundRect(-14, -bodyH - 24, 28, bodyH, 10); ctx.fill();
     
@@ -173,7 +171,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Background
     const bg = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
     bg.addColorStop(0, '#020617');
     bg.addColorStop(0.45, '#1e293b');
@@ -181,7 +178,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Track Sleepers
     for (let i = 0; i < 40; i++) {
       const z = (i * 240 - tunnelOffset.current + 8000) % 8000;
       const s = FOV / (FOV + z);
@@ -192,7 +188,6 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
       ctx.fillRect(CANVAS_WIDTH/2 - tieW/2, y, tieW, 10 * s);
     }
 
-    // Rails
     ctx.strokeStyle = '#475569';
     ctx.lineWidth = 4;
     [-1.2, -0.4, 0.4, 1.2].forEach(rx => {
@@ -221,14 +216,12 @@ export default function SubwaySurfer({ onGameOver, isMobile }: { onGameOver: (sc
         const wS = 200 * scaleS; const wE = 200 * scaleE;
         const hS = TRAIN_HEIGHT * scaleS; const hE = TRAIN_HEIGHT * scaleE;
 
-        // Side Volume
         ctx.fillStyle = obj.color;
         ctx.beginPath();
         ctx.moveTo(xS - wS/2, yS - hS); ctx.lineTo(xE - wE/2, yE - hE);
         ctx.lineTo(xE + wE/2, yE - hE); ctx.lineTo(xS + wS/2, yS - hS);
         ctx.fill();
         
-        // Front Face
         if (obj.z > 30) {
            ctx.fillStyle = '#334155';
            ctx.beginPath();

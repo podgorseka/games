@@ -18,7 +18,6 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const [distance, setDistance] = useState(0);
   const gameLoopRef = useRef<number>(0);
 
-  // Game State
   const playerX = useRef(0);
   const targetX = useRef(0);
   const playerSpeed = useRef(0);
@@ -40,14 +39,13 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     setDistance(0);
     setGameOver(false);
 
-    // Initial environment
     for (let i = 0; i < 20; i++) {
       spawnEnv(i * 400);
     }
   }, []);
 
   const spawnTraffic = useCallback(() => {
-    if (traffic.current.length > 3) return; // Moins de voitures pour plus de clarté
+    if (traffic.current.length > 3) return;
     const lanes = [-160, -60, 60, 160];
     const laneX = lanes[Math.floor(Math.random() * lanes.length)];
     
@@ -76,13 +74,11 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   const update = useCallback(() => {
     if (gameOver) return;
 
-    // Movement
     if (keys.current['LeftPress']) targetX.current -= 15;
     if (keys.current['RightPress']) targetX.current += 15;
     targetX.current = Math.max(-240, Math.min(240, targetX.current));
     playerX.current += (targetX.current - playerX.current) * 0.12;
 
-    // Speed mechanics
     if (keys.current['Accel']) targetSpeed.current = Math.min(0.55, targetSpeed.current + 0.006);
     else if (keys.current['Brake']) targetSpeed.current = Math.max(0, targetSpeed.current - 0.02);
     else targetSpeed.current = Math.max(0.05, targetSpeed.current - 0.003);
@@ -95,13 +91,11 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     setDistance(d => d + distInc);
     roadOffset.current = (roadOffset.current + playerSpeed.current * 300) % 1000;
 
-    // Traffic update
     if (Math.random() < 0.015) spawnTraffic();
     traffic.current.forEach(car => {
       const relSpeed = (playerSpeed.current - car.speed) * 200;
       car.z -= relSpeed;
 
-      // Real 3D collision check
       const carWidth = car.type === 'truck' ? 130 : 100;
       if (car.z > -15 && car.z < 115) {
         const dx = Math.abs(car.x - playerX.current);
@@ -112,7 +106,6 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     });
     traffic.current = traffic.current.filter(c => c.z > -2000 && c.z < 8500);
 
-    // Environment update
     environment.current.forEach(env => {
       env.z -= playerSpeed.current * 300;
       if (env.z < -800) env.z += 8000;
@@ -134,7 +127,6 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
     ctx.save();
     
-    // Shadow
     const shadowGrad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, vW * 0.8);
     shadowGrad.addColorStop(0, 'rgba(0,0,0,0.5)');
     shadowGrad.addColorStop(1, 'transparent');
@@ -143,25 +135,21 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     ctx.ellipse(screenX, screenY, vW * 0.8, vH * 0.2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3D Body
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.roundRect(screenX - vW / 2, roofY, vW, vH, 10 * scale);
     ctx.fill();
 
-    // Reflections and Volume
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.fillRect(screenX - vW/2, roofY, vW * 0.2, vH);
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.fillRect(screenX + vW/2 - vW*0.2, roofY, vW * 0.2, vH);
 
-    // Rear Windows
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
     ctx.roundRect(screenX - vW * 0.38, roofY + vH * 0.1, vW * 0.76, vH * 0.42, 4 * scale);
     ctx.fill();
 
-    // Lights Bloom
     ctx.shadowBlur = 25 * scale;
     ctx.shadowColor = '#ef4444';
     ctx.fillStyle = isPlayer ? '#f87171' : '#991b1b';
@@ -226,25 +214,21 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
   };
 
   const draw = useCallback((ctx: CanvasRenderingContext2D) => {
-    // Sky
     const sky = ctx.createLinearGradient(0, 0, 0, HORIZON);
     sky.addColorStop(0, '#020617');
     sky.addColorStop(1, '#1e293b');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, CANVAS_WIDTH, HORIZON);
 
-    // Road Surface
     ctx.fillStyle = '#020617';
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, CANVAS_HEIGHT - HORIZON);
 
-    // Reflections
     const reflections = ctx.createLinearGradient(0, HORIZON, 0, CANVAS_HEIGHT);
     reflections.addColorStop(0, 'rgba(30,58,138,0.3)');
     reflections.addColorStop(1, 'transparent');
     ctx.fillStyle = reflections;
     ctx.fillRect(0, HORIZON, CANVAS_WIDTH, 100);
 
-    // Lane Markings
     for (let i = 0; i < 22; i++) {
       const z = i * 300 - roadOffset.current;
       if (z < 0) continue;
@@ -300,7 +284,6 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center bg-[#020617] overflow-hidden touch-none select-none">
-      {/* PROFESSIONAL RACING HUD */}
       <div className="absolute top-6 left-6 flex flex-col gap-4 z-20 pointer-events-none">
         <div className="flex items-center gap-3">
            <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xl border border-white/20 shadow-2xl">
@@ -337,7 +320,6 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
 
       <canvas ref={canvasRef} width={800} height={450} className="w-full h-auto max-h-screen shadow-2xl" />
 
-      {/* PEDALS */}
       {!gameOver && (
         <div className="absolute bottom-8 inset-x-8 flex justify-between z-30">
           <div 
@@ -379,4 +361,3 @@ export default function MrRacer({ onGameOver, isMobile }: { onGameOver: (score: 
     </div>
   );
 }
-
