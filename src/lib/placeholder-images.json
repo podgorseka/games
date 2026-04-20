@@ -1,3 +1,52 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "block-blast",
+      "description": "Block Blast Game Image",
+      "imageUrl": "https://picsum.photos/seed/10/600/400",
+      "imageHint": "colorful blocks"
+    },
+    {
+      "id": "subway-surfer",
+      "description": "Subway Surfer Game Image",
+      "imageUrl": "https://picsum.photos/seed/20/600/400",
+      "imageHint": "subway train"
+    },
+    {
+      "id": "mr-racer",
+      "description": "Mr Racer Game Image",
+      "imageUrl": "https://picsum.photos/seed/30/600/400",
+      "imageHint": "racing car"
+    },
+    {
+      "id": "platformer-cube",
+      "description": "Platformer Cube Game Image",
+      "imageUrl": "https://picsum.photos/seed/40/600/400",
+      "imageHint": "neon platformer"
+    },
+    {
+      "id": "snake",
+      "description": "Snake Game Image",
+      "imageUrl": "https://picsum.photos/seed/50/600/400",
+      "imageHint": "retro snake"
+    },
+    {
+      "id": "tetris",
+      "description": "Tetris Game Image",
+      "imageUrl": "https://picsum.photos/seed/60/600/400",
+      "imageHint": "tetris bricks"
+    },
+    {
+      "id": "flappy-bird",
+      "description": "Flappy Bird Game Image",
+      "imageUrl": "https://picsum.photos/seed/70/600/400",
+      "imageHint": "pixel bird"
+    },
+    {
+      "id": "pong",
+      "description": "Pong Game Image",
+      "imageUrl": "https://picsum.photos/seed/80/600/400",
+      "imageHint": "classic pong"
+    }
+  ]
 }
